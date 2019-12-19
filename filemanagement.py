@@ -38,7 +38,7 @@ class Media:
             re.compile(r"[\.\+]\d{3,4}p")
         ]
 
-        self.year_regex = re.compile(r'((19)|(20))\d{2}')
+        self.year_regex = re.compile(r'(?:19|20)\d{2}')
         self.episode_regex = re.compile(r"S\d{2}E\d{2}")
 
         self.dotremove_regex = re.compile(r"[\.\+]")
@@ -143,8 +143,7 @@ class Media:
             year = year if year != "" else ""
 
             if self.type == 'movie':
-                year = " y:" + year
-                res = self.tmdb.search(name_data["name"] + year)
+                res = self.tmdb.search(name_data["name"])
             elif self.type == 'tv':
                 search = self.tvdb.Search()
                 res = search.series(name_data["name"])[0]
@@ -154,11 +153,18 @@ class Media:
                 print("No results found")
 
             if self.type == "movie":
-                metadata = res[0]
+                for item in res:
+                    if item.release_date.startswith(year):
+                        title = item.title
+                        metadata = item
+                        break
+
                 title = "{} ({})".format(metadata.original_title, metadata.release_date.split('-')[0])
 
                 f.metadata = metadata
             elif self.type == "tv":
+                #TODO: add year check
+
                 season = name_data["season"]
                 episode = name_data["episode"]
 
