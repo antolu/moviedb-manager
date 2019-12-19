@@ -1,2 +1,6 @@
 flask
 qbittorrent-api
+uwsgi
+pyyaml
+tmdbv3api
+tvdbsimple
