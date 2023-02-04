@@ -40,20 +40,23 @@ tvdb.KEYS.API_KEY = config['apikeys']['tvdb']
 q = config["qbittorrent"]
 d = config["directories"]
 
-client = Client(host=q["host"] + ":" + str(q["port"]),
-                username=q["user"], password=q["password"])
-
-print("Using qBittorrent Version: %s" % client.app_version())
+try:
+    client = Client(host=q["host"] + ":" + str(q["port"]),
+                    username=q["user"], password=q["password"])
+except:
+    log.error("Could not connect to BitTorrent.")
+log.debug("Connected to qBittorrent with version: {}".format(client.app_version()))
 
 config["qbittorrent"] = client
 config["tmdb"] = movie
 config["tvdb"] = tvdb
 
-
+log.info("Starting Flask...")
 app = Flask(__name__)
 app.config['CELERY_BROKER_URL'] = config["celery"]["celery_url"]
 app.config['CELERY_RESULT_BACKEND'] = config["celery"]["celery_result"]
 
+log.info("Starting Celery...")
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
 
@@ -76,7 +79,7 @@ def process(magnet_uri: str, typ: str, config):
 
     active_torrents= {}
 
-    torrent= None
+    current_torrent= None
 
     for torrent in torrent_list:
         if torrent["magnet_uri"] not in active_torrents:
@@ -87,11 +90,10 @@ def process(magnet_uri: str, typ: str, config):
             }
             client.torrents_resume(obj['hash'])
             active_torrents[obj['magnet_uri']]= obj
-            if torrent["magnet_uri"] == magnet_uri:
-                torrent= obj
+            current_torrent= obj
 
-    print("Torrent in progress")
-    while client.torrents_info(hash=torrent["hash"])[0]["state"] != "uploading":
+    log.debug("Torrent in progress")
+    while client.torrents_info(hash=current_torrent["hash"])[0]["state"] != "uploading":
         sleep(1)
 
     # this assumes that the 0th file is in the root directory of the download
@@ -99,7 +101,7 @@ def process(magnet_uri: str, typ: str, config):
         client.torrents_files(hash=torrent['hash'])[0]["name"])[0]
     client.torrents_delete(delete_files=False, hashes=torrent['hash'])
 
-    print("Torrent complete")
+    log.debug("Torrent complete")
 
     # TODO: look for media files inside local dir
     # TODO: move files asynchronously
@@ -121,7 +123,7 @@ def handle_data():
     magnet_uri= request.form.get("magnet_uri")
     typ= request.form.get("type_selector")
 
-    print("Received request with magnet: {}".format(magnet_uri))
+    log.debug("Received request with magnet: {}".format(magnet_uri))
 
     task= process(magnet_uri, typ, config).delay()
 

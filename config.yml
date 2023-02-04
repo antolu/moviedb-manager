@@ -1,0 +1,32 @@
+
+directories:
+  movie: Movies
+  tv: "TV Series"
+  download: "Downloads"
+  remote: '/sharedfolders/media'
+  local: "/mnt/media"
+  subtitles: Subtitles
+
+qbittorrent:
+  host: atlantis
+  port: 8080
+  user: admin
+  password: adminadmin
+
+misc:
+  mediaextensions: 
+    - mkv
+    - mp4
+    - avi
+  subtitleextensions: 
+    - srt
+    - sub
+    - idx
+
+apikeys:
+  tmdb: 750d57633d1bdd2d671441faa9e8365b
+  tvdb: 70ee9e2534664825b48ba6186cdd06e5
+
+celery:
+  celery_url: amqp://localhost
+  celery_result: amqp://localhost

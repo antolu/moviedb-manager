@@ -62,10 +62,10 @@ torrent_list = client.torrents_info(status_filter='paused')
 active_torrents = {}
 obj = None
 
-torrent = None
+current_torrent = None
 
 for torrent in torrent_list:
-    if torrent["magnet_uri"] not in active_torrents:
+    if torrent["state"] == "pausedDL":
         obj = {
             'name': torrent['name'], 
             'magnet_uri': torrent['magnet_uri'], 
@@ -73,11 +73,11 @@ for torrent in torrent_list:
             }
         client.torrents_resume(obj['hash'])
         active_torrents[obj['magnet_uri']] = obj
-        if torrent["magnet_uri"] == args.magnet_link:
-            torrent = obj
+        current_torrent = obj
 
 print("Torrent in progress")
-while client.torrents_info(hash=torrent["hash"])[0]["state"] != "uploading":
+sleep(1)
+while client.torrents_info(hash=current_torrent["hash"])[0]["state"] != "uploading":
     sleep(1)
 
 # this assumes that the 0th file is in the root directory of the download

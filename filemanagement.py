@@ -153,6 +153,7 @@ class Media:
                 print("No results found")
 
             if self.type == "movie":
+                # filter results by year
                 for item in res:
                     if item.release_date.startswith(year):
                         title = item.title
