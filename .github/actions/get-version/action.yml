@@ -1,0 +1,27 @@
+name: "Get repository version"
+description: "Determine repository version using setuptools_scm"
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+
+    - id: get_version
+      name: Get version via setuptools_scm
+      shell: bash
+      run: |
+        python -m pip install --upgrade setuptools_scm
+        VERSION=$(python -m setuptools_scm)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+outputs:
+  version:
+    description: "Version derived from setuptools_scm"
+    value: ${{ steps.get_version.outputs.version }}
