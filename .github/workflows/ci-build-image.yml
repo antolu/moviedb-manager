@@ -30,6 +30,7 @@ jobs:
           VERSION: ${{ steps.get_version.outputs.version }}
           REF_INPUT: ${{ github.ref_name }}
           DOCKER_CLI_EXPERIMENTAL: enabled
+        id: build
         run: |
           # If a version was determined (tag push), use it; otherwise use the ref name
           if [ -n "${VERSION}" ]; then
@@ -37,13 +38,16 @@ jobs:
           else
             REF_NAME="${REF_INPUT}"
           fi
-          IMAGE_TAR=image-${REF_NAME}.tar
+          # Sanitize REF_NAME for use in artifact name and filename
+          SAFE_REF_NAME=$(echo "${REF_NAME}" | sed 's/\//-/g')
+          IMAGE_TAR=image-${SAFE_REF_NAME}.tar
           docker buildx build --platform linux/amd64 --output type=oci,dest=${IMAGE_TAR} .
           ls -lh ${IMAGE_TAR}
+          echo "safe_ref_name=${SAFE_REF_NAME}" >> $GITHUB_OUTPUT
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v7
         with:
-          name: docker-image-${{ steps.get_version.outputs.version || github.ref_name }}
-          path: image-${{ steps.get_version.outputs.version || github.ref_name }}.tar
+          name: docker-image-${{ steps.build.outputs.safe_ref_name }}
+          path: image-${{ steps.build.outputs.safe_ref_name }}.tar
           retention-days: 30
