@@ -44,13 +44,6 @@ def init_services() -> None:
 
     print(f"Using qBittorrent Version: {client.app_version()}")
 
-    # we store the client in a global or similar if needed, but here it was in 'config'
-    # based on the original code, 'config' was used as a service locator
-    # let's keep a global variable for the client if needed, or just re-init as needed.
-    # actually, the original code used 'config' to pass around.
-    # let's keep a simple dict for services if needed, or better, use dependency injection or globals.
-    settings.model_extra = {"qbittorrent_client": client}
-
 
 @celery.task
 def process(magnet_uri: str, typ: str) -> bool:

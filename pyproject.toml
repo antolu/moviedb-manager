@@ -141,5 +141,5 @@ disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 # Add overrides if needed for specific libraries without type stubs
-module = ["tmdbv3api.*", "tvdbsimple.*", "qbittorrentapi.*"]
+module = ["tmdbv3api.*", "tvdbsimple.*", "qbittorrentapi.*", "celery.*"]
 ignore_missing_imports = true
