@@ -1,0 +1,53 @@
+name: Build Docker image (CI)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Get version (for tag pushes)
+        id: get_version
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ./.github/actions/get-version
+
+      - name: Build image as OCI archive (single-platform for speed)
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+          REF_INPUT: ${{ github.ref_name }}
+          DOCKER_CLI_EXPERIMENTAL: enabled
+        id: build
+        run: |
+          # If a version was determined (tag push), use it; otherwise use the ref name
+          if [ -n "${VERSION}" ]; then
+            REF_NAME="${VERSION}"
+          else
+            REF_NAME="${REF_INPUT}"
+          fi
+          # Sanitize REF_NAME for use in artifact name and filename
+          SAFE_REF_NAME=$(echo "${REF_NAME}" | sed 's/\//-/g')
+          IMAGE_TAR=image-${SAFE_REF_NAME}.tar
+          docker buildx build --platform linux/amd64 --output type=oci,dest=${IMAGE_TAR} .
+          ls -lh ${IMAGE_TAR}
+          echo "safe_ref_name=${SAFE_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: docker-image-${{ steps.build.outputs.safe_ref_name }}
+          path: image-${{ steps.build.outputs.safe_ref_name }}.tar
+          retention-days: 30
