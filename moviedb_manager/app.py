@@ -1,14 +1,10 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import os
-import typing
-from argparse import ArgumentParser
 from time import sleep
 
 import tvdbsimple as tvdb
 import uvicorn
-import yaml
 from celery import Celery
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
@@ -16,9 +12,8 @@ from fastapi.templating import Jinja2Templates
 from qbittorrentapi import Client
 from tmdbv3api import Movie, TMDb
 
+from .config import settings
 from .filemanagement import Media, MediaInit
-
-config: dict[str, typing.Any] = {}
 
 app = FastAPI()
 
@@ -27,58 +22,49 @@ templates = Jinja2Templates(
     directory=os.path.join(os.path.dirname(__file__), "templates")
 )
 
-celery = Celery("moviedb-manager")
+celery = Celery(
+    "moviedb-manager",
+    broker=settings.celery.celery_url,
+    backend=settings.celery.celery_result,
+)
 tmdb = TMDb()
 movie = Movie()
 
 
-def load_config(config_path: str) -> dict[str, typing.Any]:
-    with open(config_path, encoding="utf-8") as f:
-        return yaml.load(f, Loader=yaml.FullLoader)
+def init_services() -> None:
+    tmdb.api_key = settings.apikeys.tmdb
+    tvdb.KEYS.API_KEY = settings.apikeys.tvdb
 
-
-def init_services(app_config: dict[str, typing.Any]) -> None:
-    config.clear()
-    config.update(app_config)
-
-    tmdb.api_key = config["apikeys"]["tmdb"]
-    tvdb.KEYS.API_KEY = config["apikeys"]["tvdb"]
-
-    q = config["qbittorrent"]
+    q = settings.qbittorrent
     client = Client(
-        host=q["host"] + ":" + str(q["port"]),
-        username=q["user"],
-        password=q["password"],
+        host=f"{q.host}:{q.port}",
+        username=q.user,
+        password=q.password,
     )
 
     print(f"Using qBittorrent Version: {client.app_version()}")
 
-    config["qbittorrent"] = client
-    config["tmdb"] = movie
-    config["tvdb"] = tvdb
-
-    # Celery config
-    celery.conf.update(
-        broker_url=config["celery"]["celery_url"],
-        result_backend=config["celery"]["celery_result"],
-    )
+    # we store the client in a global or similar if needed, but here it was in 'config'
+    # based on the original code, 'config' was used as a service locator
+    # let's keep a global variable for the client if needed, or just re-init as needed.
+    # actually, the original code used 'config' to pass around.
+    # let's keep a simple dict for services if needed, or better, use dependency injection or globals.
+    settings.model_extra = {"qbittorrent_client": client}
 
 
 @celery.task
-def process(
-    magnet_uri: str, typ: str, app_config: dict[str, typing.Any] | None = None
-) -> bool:
-    if app_config is None:
-        app_config = config
-
-    client = app_config["qbittorrent"]
-    tmdb_svc = app_config["tmdb"]
-    tvdb_svc = app_config["tvdb"]
-    d = app_config["directories"]
+def process(magnet_uri: str, typ: str) -> bool:
+    q = settings.qbittorrent
+    client = Client(
+        host=f"{q.host}:{q.port}",
+        username=q.user,
+        password=q.password,
+    )
+    d = settings.directories
 
     res = client.torrents_add(
         urls=[magnet_uri],
-        save_path=os.path.join(d["remote"], d["download"]),
+        save_path=os.path.join(d.remote, d.download),
         is_paused=True,
     )
 
@@ -115,13 +101,13 @@ def process(
     print("Torrent complete")
 
     media = Media(
-        app_config,
+        settings,
         MediaInit(
             name=torrent["name"],
             magnet_uri=torrent["magnet_uri"],
             data_root=torrent["data_root"],
-            tmdb=tmdb_svc,
-            tvdb=tvdb_svc,
+            tmdb=movie,
+            tvdb=tvdb,
             typ=typ,
         ),
     )
@@ -141,16 +127,12 @@ async def handle_data(
     magnet_uri: str = Form(...), type_selector: str = Form(...)
 ) -> str:
     print(f"Received request with magnet: {magnet_uri}")
-    process.delay(magnet_uri, type_selector, config)
+    process.delay(magnet_uri, type_selector)
     return f"Success! Added magnet link {magnet_uri}"
 
 
 def main() -> None:
-    parser = ArgumentParser()
-    parser.add_argument("config", help="Path to config YAML file")
-    args = parser.parse_args()
-
-    init_services(load_config(args.config))
+    init_services()
     uvicorn.run(app, host="0.0.0.0", port=5000)
 
 

@@ -39,5 +39,18 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5000/mediamanager || exit 1
 
+# Environment variables for configuration (optional, defaults are provided in app)
+# MOVIEDB_APIKEYS__TMDB: TMDB API Key
+# MOVIEDB_APIKEYS__TVDB: TVDB API Key
+# MOVIEDB_QBITTORRENT__HOST: qBittorrent host
+# MOVIEDB_QBITTORRENT__PORT: qBittorrent port
+# MOVIEDB_QBITTORRENT__USER: qBittorrent user
+# MOVIEDB_QBITTORRENT__PASSWORD: qBittorrent password
+# MOVIEDB_DIRECTORIES__REMOTE: Remote download directory
+# MOVIEDB_DIRECTORIES__DOWNLOAD: Download subdirectory
+# MOVIEDB_DIRECTORIES__LOCAL: Local data directory
+# MOVIEDB_DIRECTORIES__MOVIE: Movie library subdirectory
+# MOVIEDB_DIRECTORIES__TV: TV library subdirectory
+
 # Set the command to run the application
-CMD ["python", "-m", "moviedb_manager.app", "data/config.yml"]
+CMD ["python", "-m", "moviedb_manager.app"]

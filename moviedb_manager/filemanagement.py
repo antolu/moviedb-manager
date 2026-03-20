@@ -8,6 +8,9 @@ import typing
 from dataclasses import dataclass
 from glob import escape, glob
 
+if typing.TYPE_CHECKING:
+    from .config import Settings
+
 
 @dataclass(slots=True)
 class MediaInit:
@@ -20,8 +23,8 @@ class MediaInit:
 
 
 class Media:
-    def __init__(self, config: dict[str, typing.Any], init: MediaInit) -> None:
-        self.directories = config["directories"]
+    def __init__(self, config: Settings, init: MediaInit) -> None:
+        self.directories = config.directories.model_dump()
         self.tmdb = init.tmdb
         self.tvdb = init.tvdb
         self.typ = init.typ
@@ -31,8 +34,8 @@ class Media:
         self.type = init.typ
 
         self.mediafiles: list[MediaFile] = []
-        self.media_extensions = config["misc"]["mediaextensions"]
-        self.subtitle_extensions = config["misc"]["subtitleextensions"]
+        self.media_extensions = config.misc.mediaextensions
+        self.subtitle_extensions = config.misc.subtitleextensions
 
         self.__initialise_variables()
 

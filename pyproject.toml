@@ -10,6 +10,8 @@ dependencies = [
     "tvdbsimple",
     "celery",
     "redis",
+    "pydantic",
+    "pydantic-settings",
 ]
 name = "moviedb-manager"
 dynamic = ["version", "readme"]
