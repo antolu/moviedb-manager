@@ -1,0 +1,140 @@
+[project]
+dependencies = [
+    "flask >= 3.0",
+    "qbittorrent-api",
+    "pyyaml",
+    "tmdbv3api",
+    "tvdbsimple",
+    "celery",
+    "redis",
+]
+name = "moviedb-manager"
+dynamic = ["version", "readme"]
+description = "A repository for managing movie downloads with automatic file renaming."
+license = { text = "Other/Proprietary License" }
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: End Users/Desktop",
+  "License :: Other/Proprietary License",
+  "Natural Language :: English",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+requires-python = "~=3.11"
+
+[[project.authors]]
+name = "Anton Lu"
+email = "anton.lu@cern.ch"
+
+[project.urls]
+homepage = "https://github.com/antolu/moviedb-manager"
+repository = "https://github.com/antolu/moviedb-manager"
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov"]
+dev = ["pre-commit", "ruff", "mypy"]
+
+[build-system]
+requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 9.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# keep this for dynamic versioning
+[tool.setuptools_scm]
+write_to = "moviedb_manager/_version.py"
+local_scheme = "no-local-version"
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.md"], content-type = "text/markdown" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["moviedb_manager*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+moviedb_manager = ["py.typed", "templates/*.html"]
+
+[project.scripts]
+moviedb-manager = "moviedb_manager.app:main"
+
+[tool.ruff]
+exclude = [
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+  ".venv",
+]
+
+line-length = 88         # black and ruff default
+target-version = "py311"
+
+[tool.ruff.lint]
+# All rules can be found here: https://docs.astral.sh/ruff/rules/
+select = [
+  "F",   # pyflakes
+  "E",   # error  (pycodestyle)
+  "W",   # warning (pycodestyle)
+  "I",   # isort
+  "I001", # isort
+  "N",   # naming  (pep8)
+  "UP",  # pyupgrade
+  "PLC", # convention  (pylint)
+  "PLE", # error  (pylint)
+  "PLW", # warning  (pylint)
+  "PLR", # refactor  (pylint)
+  "PERF",   # perflint
+  "RUF",    # ruff
+  "B",
+  "C4",
+  "FBT",
+  "A",
+  "EM",
+  "ISC",
+  "FA",
+  "G",
+  "PIE",
+  "PYI",
+  "PT",
+  "Q",
+  "RSE",
+  "RET",
+  "SLF",
+  "SIM",
+]
+fixable = ["ALL"]
+ignore = ["E501", "W505", "ISC001", "PLW2901", "N812", "N806", "G004"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.format]
+preview = true
+
+[tool.mypy]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Add overrides if needed for specific libraries without type stubs
+module = ["tmdbv3api.*", "tvdbsimple.*", "qbittorrentapi.*"]
+ignore_missing_imports = true
