@@ -72,15 +72,15 @@ def process(magnet_uri: str, typ: str) -> bool:
         print(f"Torrent add failed: {res}")
 
     torrent_list = client.torrents_info(status_filter="paused")
-    torrent = None
+    torrent: dict[str, str] | None = None
 
     for t in torrent_list:
         if t["magnet_uri"] == magnet_uri:
-            client.torrents_resume(t["hash"])
+            client.torrents_resume(str(t["hash"]))
             torrent = {
-                "name": t["name"],
-                "magnet_uri": t["magnet_uri"],
-                "hash": t["hash"],
+                "name": str(t["name"]),
+                "magnet_uri": str(t["magnet_uri"]),
+                "hash": str(t["hash"]),
             }
             break
 
@@ -94,7 +94,7 @@ def process(magnet_uri: str, typ: str) -> bool:
 
     # this assumes that the 0th file is in the root directory of the download
     torrent["data_root"] = os.path.split(
-        client.torrents_files(hash=torrent["hash"])[0]["name"]
+        str(client.torrents_files(hash=torrent["hash"])[0]["name"])
     )[0]
     client.torrents_delete(delete_files=False, hashes=torrent["hash"])
 

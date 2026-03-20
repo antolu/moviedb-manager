@@ -105,7 +105,9 @@ class Media:
             if res:
                 break
 
-        stripped_filename = filename.split(res.group(0))[0] if res else filename
+        stripped_filename = (
+            filename.split(res.group(0), maxsplit=1)[0] if res else filename
+        )
         out: dict[str, typing.Any] = {
             "name": self.dotremove_regex.sub(" ", stripped_filename)
         }
