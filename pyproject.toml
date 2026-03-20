@@ -89,10 +89,12 @@ exclude = [
   "node_modules",
   "venv",
   ".venv",
+  "moviedb_manager/_version.py",
 ]
 
 line-length = 88         # black and ruff default
 target-version = "py311"
+preview = true
 
 [tool.ruff.lint]
 # All rules can be found here: https://docs.astral.sh/ruff/rules/
