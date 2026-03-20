@@ -7,11 +7,12 @@ from argparse import ArgumentParser
 from time import sleep
 
 import tvdbsimple as tvdb
+import uvicorn
 import yaml
-
-# from process import process
 from celery import Celery
-from flask import Flask, render_template, request
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from qbittorrentapi import Client
 from tmdbv3api import Movie, TMDb
 
@@ -19,9 +20,14 @@ from .filemanagement import Media, MediaInit
 
 config: dict[str, typing.Any] = {}
 
-app = Flask(__name__)
+app = FastAPI()
 
-celery = Celery(app.name)
+# Setup templates
+templates = Jinja2Templates(
+    directory=os.path.join(os.path.dirname(__file__), "templates")
+)
+
+celery = Celery("moviedb-manager")
 tmdb = TMDb()
 movie = Movie()
 
@@ -51,9 +57,11 @@ def init_services(app_config: dict[str, typing.Any]) -> None:
     config["tmdb"] = movie
     config["tvdb"] = tvdb
 
-    app.config["CELERY_BROKER_URL"] = config["celery"]["celery_url"]
-    app.config["CELERY_RESULT_BACKEND"] = config["celery"]["celery_result"]
-    celery.conf.update(app.config)
+    # Celery config
+    celery.conf.update(
+        broker_url=config["celery"]["celery_url"],
+        result_backend=config["celery"]["celery_result"],
+    )
 
 
 @celery.task
@@ -64,9 +72,8 @@ def process(
         app_config = config
 
     client = app_config["qbittorrent"]
-    tmdb = app_config["tmdb"]
-    tvdb = app_config["tvdb"]
-
+    tmdb_svc = app_config["tmdb"]
+    tvdb_svc = app_config["tvdb"]
     d = app_config["directories"]
 
     res = client.torrents_add(
@@ -79,22 +86,21 @@ def process(
         print(f"Torrent add failed: {res}")
 
     torrent_list = client.torrents_info(status_filter="paused")
-
-    active_torrents = {}
-
     torrent = None
 
-    for torrent in torrent_list:
-        if torrent["magnet_uri"] not in active_torrents:
-            obj = {
-                "name": torrent["name"],
-                "magnet_uri": torrent["magnet_uri"],
-                "hash": torrent["hash"],
+    for t in torrent_list:
+        if t["magnet_uri"] == magnet_uri:
+            client.torrents_resume(t["hash"])
+            torrent = {
+                "name": t["name"],
+                "magnet_uri": t["magnet_uri"],
+                "hash": t["hash"],
             }
-            client.torrents_resume(obj["hash"])
-            active_torrents[obj["magnet_uri"]] = obj
-            if torrent["magnet_uri"] == magnet_uri:
-                torrent = obj
+            break
+
+    if not torrent:
+        print("Could not find added torrent")
+        return False
 
     print("Torrent in progress")
     while client.torrents_info(hash=torrent["hash"])[0]["state"] != "uploading":
@@ -108,17 +114,14 @@ def process(
 
     print("Torrent complete")
 
-    # TODO: look for media files inside local dir
-    # TODO: move files asynchronously
-
     media = Media(
         app_config,
         MediaInit(
             name=torrent["name"],
             magnet_uri=torrent["magnet_uri"],
             data_root=torrent["data_root"],
-            tmdb=tmdb,
-            tvdb=tvdb,
+            tmdb=tmdb_svc,
+            tvdb=tvdb_svc,
             typ=typ,
         ),
     )
@@ -128,23 +131,17 @@ def process(
     return True
 
 
-@app.route("/mediamanager")
-def index() -> str:
-    return render_template("index.html")
+@app.get("/mediamanager", response_class=HTMLResponse)
+async def index(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.route("/mediamanager/datahandler", methods=["POST"])
-def handle_data() -> str | tuple[str, int]:
-    magnet_uri = request.form.get("magnet_uri")
-    typ = request.form.get("type_selector")
-
-    if magnet_uri is None or typ is None:
-        return "Missing request data", 400
-
+@app.post("/mediamanager/datahandler")
+async def handle_data(
+    magnet_uri: str = Form(...), type_selector: str = Form(...)
+) -> str:
     print(f"Received request with magnet: {magnet_uri}")
-
-    process.delay(magnet_uri, typ, config)
-
+    process.delay(magnet_uri, type_selector, config)
     return f"Success! Added magnet link {magnet_uri}"
 
 
@@ -154,7 +151,7 @@ def main() -> None:
     args = parser.parse_args()
 
     init_services(load_config(args.config))
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    uvicorn.run(app, host="0.0.0.0", port=5000)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 [project]
 dependencies = [
-    "flask >= 3.0",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "python-multipart",
     "qbittorrent-api",
     "pyyaml",
     "tmdbv3api",

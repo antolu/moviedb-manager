@@ -40,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:5000/mediamanager || exit 1
 
 # Set the command to run the application
-CMD ["python", "-m", "flask", "--app", "moviedb_manager.app:app", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["python", "-m", "moviedb_manager.app", "data/config.yml"]
