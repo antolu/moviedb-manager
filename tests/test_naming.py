@@ -1,31 +1,85 @@
 from __future__ import annotations
 
-from moviedb_manager.services.naming import parse_filename
+import pytest
+
+from moviedb_manager.services.naming import ParsedFilename, parse_filename
 
 
-def test_parse_movie_filename() -> None:
-    filename = "Interstellar.2014.1080p.BluRay.x264.mkv"
+@pytest.mark.parametrize(
+    ("filename", "expected_name", "expected_year"),
+    [
+        ("Interstellar.2014.1080p.BluRay.x264.mkv", "Interstellar", "2014"),
+        ("The.Dark.Knight.2008.720p.BluRay.mkv", "The Dark Knight", "2008"),
+        ("Dune.Part.Two.2024.2160p.UHD.BluRay.mkv", "Dune Part Two", "2024"),
+        ("No.Country.for.Old.Men.2007.1080p.mkv", "No Country for Old Men", "2007"),
+        ("Movie+Name.2020.1080p.mkv", "Movie Name", "2020"),
+        ("A.Quiet.Place.Part+II.2021.mkv", "A Quiet Place Part II", "2021"),
+        # year in title: the last year wins
+        ("2001.A.Space.Odyssey.1968.1080p.mkv", "2001 A Space Odyssey", "1968"),
+    ],
+)
+def test_parse_movie_filename(
+    filename: str, expected_name: str, expected_year: str
+) -> None:
     parsed = parse_filename(filename, "movie")
-    assert parsed.name == "Interstellar"
-    assert parsed.year == "2014"
+    assert parsed.name == expected_name
+    assert parsed.year == expected_year
 
 
-def test_parse_tv_filename() -> None:
-    filename = "The.Mandalorian.S02E03.1080p.web.mp4"
+@pytest.mark.parametrize(
+    (
+        "filename",
+        "expected_name",
+        "expected_year",
+        "expected_season",
+        "expected_episode",
+    ),
+    [
+        ("The.Mandalorian.S02E03.1080p.web.mp4", "The Mandalorian", "", 2, 3),
+        ("Breaking.Bad.S05E14.Ozymandias.720p.mkv", "Breaking Bad", "", 5, 14),
+        ("Game.of.Thrones.S08E06.1080p.mkv", "Game of Thrones", "", 8, 6),
+        ("Shogun.2024.S01E01.mkv", "Shogun", "2024", 1, 1),
+    ],
+)
+def test_parse_tv_filename(
+    filename: str,
+    expected_name: str,
+    expected_year: str,
+    expected_season: int,
+    expected_episode: int,
+) -> None:
     parsed = parse_filename(filename, "tv")
-    assert parsed.name == "The Mandalorian"
-    assert parsed.season == 2  # noqa: PLR2004
-    assert parsed.episode == 3  # noqa: PLR2004
+    assert parsed.name == expected_name
+    assert parsed.year == expected_year
+    assert parsed.season == expected_season
+    assert parsed.episode == expected_episode
 
 
 def test_parse_filename_no_year() -> None:
-    filename = "Classic.Movie.mkv"
-    parsed = parse_filename(filename, "movie")
+    parsed = parse_filename("Classic.Movie.mkv", "movie")
     assert parsed.name == "Classic Movie"
     assert not parsed.year
 
 
-def test_parse_filename_with_dots_and_pluses() -> None:
-    filename = "Movie+Name.2020.mkv"
-    parsed = parse_filename(filename, "movie")
-    assert parsed.name == "Movie Name"
+def test_parse_filename_no_episode_info() -> None:
+    parsed = parse_filename("SomeShow.mkv", "tv")
+    assert parsed.season is None
+    assert parsed.episode is None
+
+
+@pytest.mark.parametrize("ext", ["mkv", "mp4", "avi", "m4v"])
+def test_parse_filename_common_extensions(ext: str) -> None:
+    parsed = parse_filename(f"Movie.2023.1080p.{ext}", "movie")
+    assert parsed.name == "Movie"
+    assert parsed.year == "2023"
+
+
+def test_parse_filename_scene_release() -> None:
+    parsed = parse_filename("The.Batman.2022.1080p.BluRay.x264-SPARKS.mkv", "movie")
+    assert parsed.name == "The Batman"
+    assert parsed.year == "2022"
+
+
+def test_parse_filename_returns_parsed_filename_model() -> None:
+    result = parse_filename("Dune.2021.mkv", "movie")
+    assert isinstance(result, ParsedFilename)

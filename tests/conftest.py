@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+import moviedb_manager.config.settings
 from moviedb_manager.api.protocols import MovieSearchResult, TvShowResult
 
 if TYPE_CHECKING:
@@ -93,7 +94,6 @@ def media_root(tmp_path: Path) -> Path:
     download_dir = tmp_path / "downloads"
     download_dir.mkdir()
 
-    # Create some dummy files
     (download_dir / "Movie.2023.1080p.mkv").touch()
 
     tv_dir = download_dir / "Show.S01E05.720p"
@@ -101,3 +101,11 @@ def media_root(tmp_path: Path) -> Path:
     (tv_dir / "file.mp4").touch()
 
     return tmp_path
+
+
+@pytest.fixture
+def settings(tmp_path: Path) -> moviedb_manager.config.settings.Settings:
+    s = moviedb_manager.config.settings.Settings()
+    s.directories.local = str(tmp_path)
+    s.directories.remote = str(tmp_path)
+    return s
