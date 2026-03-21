@@ -12,7 +12,14 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
 } from "lucide-react";
-import { addTorrent, getHistory, type Torrent, type HistoryItem } from "./api";
+import {
+  addTorrent,
+  getHistory,
+  getStatus,
+  type Torrent,
+  type HistoryItem,
+  type StatusResponse,
+} from "./api";
 
 function App() {
   type Tab = "download" | "status" | "history";
@@ -22,6 +29,8 @@ function App() {
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<StatusResponse | null>(null);
+  const buildVersion = import.meta.env.VITE_APP_VERSION;
   const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
@@ -51,6 +60,10 @@ function App() {
     };
 
     return () => eventSource.close();
+  }, []);
+
+  useEffect(() => {
+    void getStatus().then((response) => setStatus(response.data));
   }, []);
 
   // Fetch history
@@ -123,9 +136,18 @@ function App() {
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
             <Play className="fill-white text-white ml-1" size={20} />
           </div>
-          <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            MOVIEDB
-          </h1>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              MOVIEDB
+            </h1>
+            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">
+              {buildVersion
+                ? `v${buildVersion}`
+                : status?.version
+                  ? `v${status.version}`
+                  : "Loading version"}
+            </p>
+          </div>
         </div>
 
         <nav className="flex bg-white/5 p-1 rounded-2xl border border-white/5">

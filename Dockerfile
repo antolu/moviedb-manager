@@ -1,10 +1,23 @@
 # Stage 1: Build the React frontend
 FROM node:22-alpine AS frontend-builder
+WORKDIR /build
+
+RUN apk add --no-cache git python3 py3-pip
+
+COPY pyproject.toml ./
+COPY moviedb_manager/ ./moviedb_manager/
+COPY .git/ ./.git/
+
+RUN python3 -m pip install --no-cache-dir setuptools-scm && \
+    python3 -c "import setuptools_scm; print(setuptools_scm.get_version(root='/build', version_file='moviedb_manager/_version.py'))" > /tmp/app_version
+
 WORKDIR /build/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+RUN APP_VERSION="$(cat /tmp/app_version)" && \
+    printf 'VITE_APP_VERSION=%s\n' "$APP_VERSION" > .env.production && \
+    npm run build
 
 # Stage 2: Build the Python application
 FROM python:3.14-slim

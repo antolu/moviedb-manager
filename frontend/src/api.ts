@@ -21,9 +21,16 @@ export interface HistoryItem {
   moved_at: string;
 }
 
-export const addTorrent = (magnet_uri: string, media_type: "movie" | "tv") =>
-  api.post("/api/torrents", { magnet_uri, media_type });
+export interface StatusResponse {
+  status: string;
+  version: string;
+}
 
-export const getHistory = () => api.get<HistoryItem[]>("/api/history");
+export const addTorrent = (magnet_uri: string, media_type: "movie" | "tv") =>
+  api.post("/torrents", { magnet_uri, media_type });
+
+export const getHistory = () => api.get<HistoryItem[]>("/history");
+
+export const getStatus = () => api.get<StatusResponse>("/status");
 
 export default api;

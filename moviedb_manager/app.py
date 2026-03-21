@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
+from . import __version__
 from .api.tmdb import TmdbMovieAdapter
 from .api.tvdb import TvDbAdapter
 from .config.settings import settings
@@ -59,7 +60,7 @@ app = fastapi.FastAPI(lifespan=lifespan)
 
 @app.get("/api/status")
 async def get_api_status() -> dict[str, str]:
-    return {"status": "ok", "version": "2.0.0"}
+    return {"status": "ok", "version": __version__}
 
 
 async def run_pipeline_task(magnet_uri: str, media_type: str) -> None:
