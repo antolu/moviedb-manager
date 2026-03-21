@@ -27,7 +27,7 @@ celery = Celery(
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: RUF029
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:  # noqa: RUF029
     # Initialize API clients
     app.state.movie_db = moviedb_manager.api.tmdb.TmdbMovieAdapter(
         moviedb_manager.config.settings.settings.apikeys.tmdb

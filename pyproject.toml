@@ -28,6 +28,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 requires-python = "~=3.11"
 
@@ -93,7 +94,7 @@ exclude = [
 ]
 
 line-length = 88         # black and ruff default
-target-version = "py311"
+target-version = "py314"
 preview = true
 
 [tool.ruff.lint]
