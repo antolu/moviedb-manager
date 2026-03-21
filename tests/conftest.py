@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
+import dataclasses
+import pathlib
 
 import pytest
 
-import moviedb_manager.config.settings
 from moviedb_manager.api.protocols import MovieSearchResult
+from moviedb_manager.config.settings import Settings
 
 
-@dataclass
+@dataclasses.dataclass
 class StubMovieResult:
     original_title: str
     release_date: str
@@ -59,7 +59,7 @@ def tv_db_stub() -> StubTvDbClient:
 
 
 @pytest.fixture
-def media_root(tmp_path: Path) -> Path:
+def media_root(tmp_path: pathlib.Path) -> pathlib.Path:
     download_dir = tmp_path / "downloads"
     download_dir.mkdir()
 
@@ -73,8 +73,8 @@ def media_root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def settings(tmp_path: Path) -> moviedb_manager.config.settings.Settings:
-    s = moviedb_manager.config.settings.Settings()
+def settings(tmp_path: pathlib.Path) -> Settings:
+    s = Settings()
     s.directories.local = str(tmp_path)
     s.directories.remote = str(tmp_path)
     return s

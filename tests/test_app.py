@@ -1,10 +1,12 @@
-from unittest.mock import patch
+from __future__ import annotations
 
-from fastapi.testclient import TestClient
+import unittest.mock
+
+import fastapi.testclient
 
 from moviedb_manager.app import app
 
-client = TestClient(app)
+client = fastapi.testclient.TestClient(app)
 
 
 def test_root_endpoint() -> None:
@@ -16,7 +18,7 @@ def test_root_endpoint() -> None:
 
 def test_handle_data_success() -> None:
     # Mock the celery task's delay method
-    with patch("moviedb_manager.app.process_task.delay") as mock_delay:
+    with unittest.mock.patch("moviedb_manager.app.process_task.delay") as mock_delay:
         response = client.post(
             "/mediamanager/datahandler",
             data={"magnet_uri": "mag1", "type_selector": "movie"},
@@ -42,9 +44,9 @@ def test_lifespan_initialization() -> None:
     # Since we can't easily trigger lifespan in TestClient for all tests,
     # we can at least check if the logic in lifespan is correct by calling it or mocking it.
     with (
-        patch("moviedb_manager.app.Client"),
-        patch("moviedb_manager.api.tmdb.TmdbMovieAdapter"),
-        patch("moviedb_manager.api.tvdb.TvDbAdapter"),
+        unittest.mock.patch("moviedb_manager.app.qbittorrentapi.Client"),
+        unittest.mock.patch("moviedb_manager.app.TmdbMovieAdapter"),
+        unittest.mock.patch("moviedb_manager.app.TvDbAdapter"),
         client,
     ):
         assert hasattr(app.state, "movie_db")

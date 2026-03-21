@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import typing
 
-if TYPE_CHECKING:
-    import moviedb_manager.api.protocols
-    import moviedb_manager.services.naming
+if typing.TYPE_CHECKING:
+    from ..api.protocols import MovieDbClient, TvDbClient
+    from .naming import ParsedFilename
 
 
 def resolve_movie_title(
-    parsed: moviedb_manager.services.naming.ParsedFilename,
-    client: moviedb_manager.api.protocols.MovieDbClient,
+    parsed: ParsedFilename,
+    client: MovieDbClient,
 ) -> str:
     results = client.search(parsed.name)
     if not results:
@@ -33,8 +33,8 @@ def resolve_movie_title(
 
 
 def resolve_tv_episode_title(
-    parsed: moviedb_manager.services.naming.ParsedFilename,
-    client: moviedb_manager.api.protocols.TvDbClient,
+    parsed: ParsedFilename,
+    client: TvDbClient,
 ) -> tuple[str, str]:
     results = client.search_series(parsed.name)
     if not results:

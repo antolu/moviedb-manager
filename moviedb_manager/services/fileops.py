@@ -1,23 +1,23 @@
 from __future__ import annotations
 
+import glob
 import os
+import pathlib
 import shutil
-from glob import escape, glob
-from pathlib import Path
-from typing import TYPE_CHECKING
+import typing
 
-import moviedb_manager.models.media
+from ..models.media import MediaFile, MediaType, SubtitleFile
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     pass
 
 
 def find_media_files(
-    data_path: Path,
+    data_path: pathlib.Path,
     media_extensions: list[str],
-    media_type: moviedb_manager.models.media.MediaType = "movie",
-) -> list[moviedb_manager.models.media.MediaFile]:
-    files: list[moviedb_manager.models.media.MediaFile] = []
+    media_type: MediaType = "movie",
+) -> list[MediaFile]:
+    files: list[MediaFile] = []
 
     if not data_path.exists():
         return files
@@ -25,7 +25,7 @@ def find_media_files(
     if data_path.is_file():
         if data_path.suffix.lstrip(".") in media_extensions:
             return [
-                moviedb_manager.models.media.MediaFile(
+                MediaFile(
                     filename=data_path.name,
                     absolute_path=data_path,
                     media_type=media_type,
@@ -34,13 +34,11 @@ def find_media_files(
         return files
 
     for ext in media_extensions:
-        found = glob(os.path.join(escape(str(data_path)), "*." + ext))
+        found = glob.glob(os.path.join(glob.escape(str(data_path)), "*." + ext))
         for path_str in found:
-            path = Path(path_str)
+            path = pathlib.Path(path_str)
             files.append(
-                moviedb_manager.models.media.MediaFile(
-                    filename=path.name, absolute_path=path, media_type=media_type
-                )
+                MediaFile(filename=path.name, absolute_path=path, media_type=media_type)
             )
 
     for item in data_path.iterdir():
@@ -51,8 +49,7 @@ def find_media_files(
 
 
 def rename_file(
-    file: moviedb_manager.models.media.MediaFile
-    | moviedb_manager.models.media.SubtitleFile,
+    file: MediaFile | SubtitleFile,
     new_base_name: str,
 ) -> None:
     extension = file.absolute_path.suffix
@@ -66,9 +63,8 @@ def rename_file(
 
 
 def move_file(
-    file: moviedb_manager.models.media.MediaFile
-    | moviedb_manager.models.media.SubtitleFile,
-    dest_dir: Path,
+    file: MediaFile | SubtitleFile,
+    dest_dir: pathlib.Path,
 ) -> None:
     dest_dir.mkdir(parents=True, exist_ok=True)
     new_path = dest_dir / file.filename
@@ -77,6 +73,6 @@ def move_file(
     file.absolute_path = new_path
 
 
-def cleanup_directory(path: Path) -> None:
+def cleanup_directory(path: pathlib.Path) -> None:
     if path.exists() and path.is_dir():
         shutil.rmtree(path)

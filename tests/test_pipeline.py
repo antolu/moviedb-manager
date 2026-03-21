@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+import pathlib
+import unittest.mock
 
 import pytest
 
-import moviedb_manager.config.settings
-import moviedb_manager.services.pipeline
+from moviedb_manager.config.settings import Settings
 from moviedb_manager.models.media import TorrentInfo
-from tests.conftest import (
+from moviedb_manager.services.pipeline import process_torrent_pipeline
+
+from .conftest import (
     StubMovieDbClient,
     StubMovieResult,
     StubTvDbClient,
@@ -16,10 +17,10 @@ from tests.conftest import (
 
 
 def test_process_movie_pipeline(
-    media_root: Path,
+    media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
-    settings: moviedb_manager.config.settings.Settings,
+    settings: Settings,
 ) -> None:
     # Setup stubs
     movie_db_stub.results = [
@@ -27,7 +28,7 @@ def test_process_movie_pipeline(
     ]
 
     # Mock qBittorrent client
-    qbt_mock = MagicMock()
+    qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.side_effect = [
         [{"hash": "h1", "name": "Interstellar.2014.1080p", "magnet_uri": "mag1"}],
@@ -43,8 +44,10 @@ def test_process_movie_pipeline(
     mkv_file = download_path / "movie.mkv"
     mkv_file.touch()
 
-    with patch("moviedb_manager.services.torrent.sleep", return_value=None):
-        moviedb_manager.services.pipeline.process_torrent_pipeline(
+    with unittest.mock.patch(
+        "moviedb_manager.services.torrent.time.sleep", return_value=None
+    ):
+        process_torrent_pipeline(
             magnet_uri="mag1",
             media_type="movie",
             qbt_client=qbt_mock,
@@ -60,10 +63,10 @@ def test_process_movie_pipeline(
 
 
 def test_process_tv_pipeline(
-    media_root: Path,
+    media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
-    settings: moviedb_manager.config.settings.Settings,
+    settings: Settings,
 ) -> None:
     # Setup stubs
     tv_db_stub.search_results = [{"id": 1, "name": "The Mandalorian"}]
@@ -71,7 +74,7 @@ def test_process_tv_pipeline(
     tv_db_stub.episode_name = "The Jedi"
 
     # Mock qBittorrent client
-    qbt_mock = MagicMock()
+    qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.side_effect = [
         [{"hash": "h2", "name": "Mandalorian.S02E05", "magnet_uri": "mag2"}],
@@ -85,8 +88,10 @@ def test_process_tv_pipeline(
     mp4_file = download_path / "The.Mandalorian.S02E05.720p.mp4"
     mp4_file.touch()
 
-    with patch("moviedb_manager.services.torrent.sleep", return_value=None):
-        moviedb_manager.services.pipeline.process_torrent_pipeline(
+    with unittest.mock.patch(
+        "moviedb_manager.services.torrent.time.sleep", return_value=None
+    ):
+        process_torrent_pipeline(
             magnet_uri="mag2",
             media_type="tv",
             qbt_client=qbt_mock,
@@ -102,12 +107,12 @@ def test_process_tv_pipeline(
 
 
 def test_pipeline_no_media_files(
-    media_root: Path,
+    media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
-    settings: moviedb_manager.config.settings.Settings,
+    settings: Settings,
 ) -> None:
-    qbt_mock = MagicMock()
+    qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.return_value = [
         {"hash": "h3", "name": "Empty", "magnet_uri": "mag3", "state": "completed"}
@@ -120,10 +125,12 @@ def test_pipeline_no_media_files(
     (download_path / "nothing.txt").touch()
 
     with (
-        patch("moviedb_manager.services.torrent.sleep", return_value=None),
+        unittest.mock.patch(
+            "moviedb_manager.services.torrent.time.sleep", return_value=None
+        ),
         pytest.raises(RuntimeError, match="No media files found"),
     ):
-        moviedb_manager.services.pipeline.process_torrent_pipeline(
+        process_torrent_pipeline(
             magnet_uri="mag3",
             media_type="movie",
             qbt_client=qbt_mock,
@@ -134,15 +141,15 @@ def test_pipeline_no_media_files(
 
 
 def test_pipeline_multiple_files(
-    media_root: Path,
+    media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
-    settings: moviedb_manager.config.settings.Settings,
+    settings: Settings,
 ) -> None:
     movie_db_stub.results = [
         StubMovieResult(original_title="Kill Bill", release_date="2003-10-10")
     ]
-    qbt_mock = MagicMock()
+    qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.return_value = [
         {"hash": "h4", "name": "Kill.Bill", "magnet_uri": "mag4", "state": "completed"}
@@ -154,8 +161,10 @@ def test_pipeline_multiple_files(
     (download_path / "vol1.mkv").touch()
     (download_path / "vol2.mkv").touch()
 
-    with patch("moviedb_manager.services.torrent.sleep", return_value=None):
-        moviedb_manager.services.pipeline.process_torrent_pipeline(
+    with unittest.mock.patch(
+        "moviedb_manager.services.torrent.time.sleep", return_value=None
+    ):
+        process_torrent_pipeline(
             magnet_uri="mag4",
             media_type="movie",
             qbt_client=qbt_mock,
@@ -173,19 +182,19 @@ def test_pipeline_multiple_files(
 
 
 def test_pipeline_multi_file_tv_torrent(
-    settings: moviedb_manager.config.settings.Settings,
+    settings: Settings,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
 ) -> None:
     # Torrent has two TV episodes
-    local_base = Path(settings.directories.local)
+    local_base = pathlib.Path(settings.directories.local)
     torrent_dir = local_base / settings.directories.download / "Show.Torrent"
     torrent_dir.mkdir(parents=True)
     (torrent_dir / "Show.S01E01.mkv").touch()
     (torrent_dir / "Show.S01E02.mkv").touch()
 
     # Mock qbt client
-    mock_qbt = MagicMock()
+    mock_qbt = unittest.mock.MagicMock()
     mock_qbt.torrents_files.return_value = [
         {"name": "Show.Torrent/Show.S01E01.mkv"},
         {"name": "Show.Torrent/Show.S01E02.mkv"},
@@ -196,13 +205,13 @@ def test_pipeline_multi_file_tv_torrent(
     tv_db_stub.series_name = "Show"
     tv_db_stub.episode_name = "Pilot"
 
-    with patch(
-        "moviedb_manager.services.torrent.add_and_wait_for_completion"
+    with unittest.mock.patch(
+        "moviedb_manager.services.pipeline.add_and_wait_for_completion"
     ) as mock_add:
         mock_add.return_value = TorrentInfo(
             hash="h1", name="Show.Torrent", data_root="Show.Torrent", magnet_uri="h1"
         )
-        moviedb_manager.services.pipeline.process_torrent_pipeline(
+        process_torrent_pipeline(
             qbt_client=mock_qbt,
             magnet_uri="h1",
             media_type="tv",
@@ -220,16 +229,16 @@ def test_pipeline_multi_file_tv_torrent(
 
 
 def test_pipeline_readonly_destination(
-    settings: moviedb_manager.config.settings.Settings,
+    settings: Settings,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
 ) -> None:
-    local_base = Path(settings.directories.local)
+    local_base = pathlib.Path(settings.directories.local)
     torrent_dir = local_base / settings.directories.download / "Test.Movie"
     torrent_dir.mkdir(parents=True)
     (torrent_dir / "Movie.2023.mkv").touch()
 
-    mock_qbt = MagicMock()
+    mock_qbt = unittest.mock.MagicMock()
     mock_qbt.torrents_files.return_value = [{"name": "Test.Movie/Movie.2023.mkv"}]
     movie_db_stub.results = [
         StubMovieResult(original_title="Movie", release_date="2023-01-01")
@@ -240,15 +249,15 @@ def test_pipeline_readonly_destination(
     movies_dir.mkdir(parents=True, exist_ok=True)
     movies_dir.chmod(0o555)
 
-    mock_add_patch = patch(
-        "moviedb_manager.services.torrent.add_and_wait_for_completion"
+    mock_add_patch = unittest.mock.patch(
+        "moviedb_manager.services.pipeline.add_and_wait_for_completion"
     )
     with mock_add_patch as mock_add:
         mock_add.return_value = TorrentInfo(
             hash="h1", name="Test.Movie", data_root="Test.Movie", magnet_uri="h1"
         )
         with pytest.raises(PermissionError):
-            moviedb_manager.services.pipeline.process_torrent_pipeline(
+            process_torrent_pipeline(
                 qbt_client=mock_qbt,
                 magnet_uri="h1",
                 media_type="movie",

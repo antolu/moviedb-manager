@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+import pathlib
 
 import pytest
 
@@ -13,7 +13,7 @@ from moviedb_manager.services.fileops import (
 )
 
 
-def test_find_media_files_directory(media_root: Path) -> None:
+def test_find_media_files_directory(media_root: pathlib.Path) -> None:
     files = find_media_files(media_root / "downloads", ["mkv", "mp4"])
     filenames = {f.filename for f in files}
     assert "Movie.2023.1080p.mkv" in filenames
@@ -21,7 +21,7 @@ def test_find_media_files_directory(media_root: Path) -> None:
     assert len(files) == 2
 
 
-def test_find_media_files_single_file(tmp_path: Path) -> None:
+def test_find_media_files_single_file(tmp_path: pathlib.Path) -> None:
     f = tmp_path / "movie.mkv"
     f.touch()
     files = find_media_files(f, ["mkv", "mp4"])
@@ -29,20 +29,20 @@ def test_find_media_files_single_file(tmp_path: Path) -> None:
     assert files[0].filename == "movie.mkv"
 
 
-def test_find_media_files_single_file_wrong_extension(tmp_path: Path) -> None:
+def test_find_media_files_single_file_wrong_extension(tmp_path: pathlib.Path) -> None:
     f = tmp_path / "movie.txt"
     f.touch()
     files = find_media_files(f, ["mkv", "mp4"])
     assert files == []
 
 
-def test_find_media_files_nonexistent_path(tmp_path: Path) -> None:
+def test_find_media_files_nonexistent_path(tmp_path: pathlib.Path) -> None:
     missing = tmp_path / "doesnotexist"
     files = find_media_files(missing, ["mkv"])
     assert files == []
 
 
-def test_find_media_files_nested(tmp_path: Path) -> None:
+def test_find_media_files_nested(tmp_path: pathlib.Path) -> None:
     (tmp_path / "a" / "b").mkdir(parents=True)
     (tmp_path / "a" / "b" / "deep.mkv").touch()
     (tmp_path / "top.mp4").touch()
@@ -53,7 +53,7 @@ def test_find_media_files_nested(tmp_path: Path) -> None:
     assert "top.mp4" in filenames
 
 
-def test_find_media_files_ignores_non_media(tmp_path: Path) -> None:
+def test_find_media_files_ignores_non_media(tmp_path: pathlib.Path) -> None:
     (tmp_path / "movie.mkv").touch()
     (tmp_path / "movie.nfo").touch()
     (tmp_path / "cover.jpg").touch()
@@ -63,13 +63,13 @@ def test_find_media_files_ignores_non_media(tmp_path: Path) -> None:
     assert files[0].filename == "movie.mkv"
 
 
-def test_find_media_files_media_type_propagated(tmp_path: Path) -> None:
+def test_find_media_files_media_type_propagated(tmp_path: pathlib.Path) -> None:
     (tmp_path / "ep.mkv").touch()
     files = find_media_files(tmp_path, ["mkv"], media_type="tv")
     assert files[0].media_type == "tv"
 
 
-def test_rename_file_mediafile(tmp_path: Path) -> None:
+def test_rename_file_mediafile(tmp_path: pathlib.Path) -> None:
     src = tmp_path / "old_name.mkv"
     src.touch()
     media_file = MediaFile(
@@ -84,7 +84,7 @@ def test_rename_file_mediafile(tmp_path: Path) -> None:
     assert (tmp_path / "New Name (2023).mkv").exists()
 
 
-def test_rename_file_subtitle(tmp_path: Path) -> None:
+def test_rename_file_subtitle(tmp_path: pathlib.Path) -> None:
     src = tmp_path / "subtitle.srt"
     src.touch()
     sub = SubtitleFile(filename="subtitle.srt", absolute_path=src)
@@ -95,7 +95,7 @@ def test_rename_file_subtitle(tmp_path: Path) -> None:
     assert (tmp_path / "Movie Title (2023).srt").exists()
 
 
-def test_move_file_creates_dest_dir(tmp_path: Path) -> None:
+def test_move_file_creates_dest_dir(tmp_path: pathlib.Path) -> None:
     src_dir = tmp_path / "src"
     src_dir.mkdir()
     dest_dir = tmp_path / "new" / "nested" / "dir"
@@ -112,7 +112,7 @@ def test_move_file_creates_dest_dir(tmp_path: Path) -> None:
     assert media_file.absolute_path == dest_dir / "file.mkv"
 
 
-def test_cleanup_directory(tmp_path: Path) -> None:
+def test_cleanup_directory(tmp_path: pathlib.Path) -> None:
     target = tmp_path / "to_delete"
     target.mkdir()
     (target / "junk.txt").touch()
@@ -121,13 +121,15 @@ def test_cleanup_directory(tmp_path: Path) -> None:
     assert not target.exists()
 
 
-def test_cleanup_directory_nonexistent(tmp_path: Path) -> None:
+def test_cleanup_directory_nonexistent(tmp_path: pathlib.Path) -> None:
     missing = tmp_path / "ghost"
     cleanup_directory(missing)  # should not raise
 
 
 @pytest.mark.parametrize("ext", ["mkv", "mp4", "avi", "m4v"])
-def test_find_media_files_all_supported_extensions(tmp_path: Path, ext: str) -> None:
+def test_find_media_files_all_supported_extensions(
+    tmp_path: pathlib.Path, ext: str
+) -> None:
     (tmp_path / f"video.{ext}").touch()
     files = find_media_files(tmp_path, ["mkv", "mp4", "avi", "m4v"])
     assert len(files) == 1

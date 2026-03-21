@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+import typing
 
 
-@runtime_checkable
-class MovieSearchResult(Protocol):
+@typing.runtime_checkable
+class MovieSearchResult(typing.Protocol):
     original_title: str
     release_date: str  # "YYYY-MM-DD"
 
 
-@runtime_checkable
-class MovieDbClient(Protocol):
+@typing.runtime_checkable
+class MovieDbClient(typing.Protocol):
     def search(self, name: str) -> list[MovieSearchResult]: ...
 
 
-@runtime_checkable
-class TvDbClient(Protocol):
+@typing.runtime_checkable
+class TvDbClient(typing.Protocol):
     def search_series(self, name: str) -> list[dict]: ...
 
     def get_series_name(self, series_id: int) -> str: ...

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+import unittest.mock
 
 import pytest
 
@@ -9,7 +9,8 @@ from moviedb_manager.services.metadata import (
     resolve_tv_episode_title,
 )
 from moviedb_manager.services.naming import ParsedFilename
-from tests.conftest import (
+
+from .conftest import (
     StubMovieDbClient,
     StubMovieResult,
     StubTvDbClient,
@@ -145,7 +146,9 @@ def test_resolve_movie_title_api_failure(movie_db_stub: StubMovieDbClient) -> No
     parsed = ParsedFilename(name="Interstellar", year="2014")
 
     with (
-        patch.object(movie_db_stub, "search", side_effect=RuntimeError("API Down")),
+        unittest.mock.patch.object(
+            movie_db_stub, "search", side_effect=RuntimeError("API Down")
+        ),
         pytest.raises(RuntimeError, match="API Down"),
     ):
         resolve_movie_title(parsed, movie_db_stub)
@@ -155,7 +158,7 @@ def test_resolve_tv_title_api_failure(tv_db_stub: StubTvDbClient) -> None:
     parsed = ParsedFilename(name="The Boys", season=1, episode=1)
 
     with (
-        patch.object(
+        unittest.mock.patch.object(
             tv_db_stub, "search_series", side_effect=RuntimeError("TVDB Down")
         ),
         pytest.raises(RuntimeError, match="TVDB Down"),

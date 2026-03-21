@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
-from time import sleep
-from typing import TYPE_CHECKING
+import pathlib
+import time
+import typing
 
-from moviedb_manager.models.media import TorrentInfo
+from ..models.media import TorrentInfo
 
-if TYPE_CHECKING:
-    from qbittorrentapi import Client
+if typing.TYPE_CHECKING:
+    import qbittorrentapi
 
 
 def add_and_wait_for_completion(
-    client: Client, magnet_uri: str, save_path: Path
+    client: qbittorrentapi.Client, magnet_uri: str, save_path: pathlib.Path
 ) -> TorrentInfo:
     res = client.torrents_add(
         urls=[magnet_uri],
@@ -44,7 +44,7 @@ def add_and_wait_for_completion(
         info = client.torrents_info(hashes=torrent_hash)[0]
         if info["state"] in {"uploading", "stalledUP", "completed"}:
             break
-        sleep(1)
+        time.sleep(1)
 
     # Get data root (directory or file name)
     files = client.torrents_files(hashes=torrent_hash)

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+import typing
 
-from pydantic import BaseModel
+import pydantic
 
-if TYPE_CHECKING:
-    import moviedb_manager.models.media
+if typing.TYPE_CHECKING:
+    from ..models.media import MediaType
 
 
-class ParsedFilename(BaseModel):
+class ParsedFilename(pydantic.BaseModel):
     name: str
     year: str = ""
     season: int | None = None
@@ -29,9 +29,7 @@ EPISODE_REGEX = re.compile(r"S\d{2}E\d{2}")
 DOTREMOVE_REGEX = re.compile(r"[\.\+]")
 
 
-def parse_filename(
-    filename: str, media_type: moviedb_manager.models.media.MediaType
-) -> ParsedFilename:
+def parse_filename(filename: str, media_type: MediaType) -> ParsedFilename:
     # Strip extension
     base_filename = re.sub(r"\.[a-zA-Z0-9]{2,4}$", "", filename)
 
