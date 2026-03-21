@@ -8,8 +8,9 @@ COPY pyproject.toml ./
 COPY moviedb_manager/ ./moviedb_manager/
 COPY .git/ ./.git/
 
-RUN python3 -m pip install --no-cache-dir setuptools-scm && \
-    python3 -c "import setuptools_scm; print(setuptools_scm.get_version(root='/build', version_file='moviedb_manager/_version.py'))" > /tmp/app_version
+RUN python3 -m venv /tmp/version-venv && \
+    /tmp/version-venv/bin/pip install --no-cache-dir setuptools-scm && \
+    /tmp/version-venv/bin/python -c "import setuptools_scm; print(setuptools_scm.get_version(root='/build', relative_to='/build/pyproject.toml', version_file='moviedb_manager/_version.py'))" > /tmp/app_version
 
 WORKDIR /build/frontend
 COPY frontend/package*.json ./
@@ -20,7 +21,7 @@ RUN APP_VERSION="$(cat /tmp/app_version)" && \
     npm run build
 
 # Stage 2: Build the Python application
-FROM python:3.14-slim
+FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -29,25 +30,20 @@ RUN groupadd -r moviedb && useradd -r -g moviedb moviedb
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpq-dev \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy application code and git metadata
 COPY moviedb_manager/ ./moviedb_manager/
 COPY pyproject.toml .
 COPY README.md .
-COPY .git/ ./.git/
+
+# Reuse the git-derived version computed in the frontend stage
+COPY --from=frontend-builder /tmp/app_version /tmp/app_version
 
 # Copy built frontend assets
 COPY --from=frontend-builder /build/frontend/dist ./moviedb_manager/static
 
 # Install dependencies
-RUN pip install --no-cache-dir .
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MOVIEDB_MANAGER="$(cat /tmp/app_version)" \
+    pip install --no-cache-dir .
 
 # Create data directory
 RUN mkdir -p /app/data && chown moviedb:moviedb /app/data
@@ -60,7 +56,7 @@ EXPOSE 5000
 
 # Health check (matches docker-compose)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/api/status || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')" || exit 1
 
 # Command to run the application
 CMD ["python", "-m", "moviedb_manager.app"]
