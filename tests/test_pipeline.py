@@ -7,6 +7,7 @@ import pytest
 
 import moviedb_manager.config.settings
 import moviedb_manager.services.pipeline
+from moviedb_manager.models.media import TorrentInfo
 from tests.conftest import (
     StubMovieDbClient,
     StubMovieResult,
@@ -170,3 +171,92 @@ def test_pipeline_multiple_files(
     # unless naming.py or fileops.py handles duplicates.
     # Current implementation might overwrite. Let's check how many files are in movie_lib.
     assert len(list(movie_lib.glob("*.mkv"))) >= 1
+
+
+def test_pipeline_multi_file_tv_torrent(
+    settings: moviedb_manager.config.settings.Settings,
+    movie_db_stub: StubMovieDbClient,
+    tv_db_stub: StubTvDbClient,
+) -> None:
+    # Torrent has two TV episodes
+    local_base = Path(settings.directories.local)
+    torrent_dir = local_base / settings.directories.download / "Show.Torrent"
+    torrent_dir.mkdir(parents=True)
+    (torrent_dir / "Show.S01E01.mkv").touch()
+    (torrent_dir / "Show.S01E02.mkv").touch()
+
+    # Mock qbt client
+    mock_qbt = MagicMock()
+    mock_qbt.torrents_files.return_value = [
+        {"name": "Show.Torrent/Show.S01E01.mkv"},
+        {"name": "Show.Torrent/Show.S01E02.mkv"},
+    ]
+
+    # Stubs
+    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Show")]
+    tv_db_stub.series_info = {"seriesName": "Show"}
+    tv_db_stub.episodes = [
+        {"episodeName": "Pilot", "airedEpisodeNumber": 1, "airedSeason": 1},
+        {"episodeName": "Second", "airedEpisodeNumber": 2, "airedSeason": 1},
+    ]
+
+    with patch(
+        "moviedb_manager.services.torrent.add_and_wait_for_completion"
+    ) as mock_add:
+        mock_add.return_value = TorrentInfo(
+            hash="h1", name="Show.Torrent", data_root="Show.Torrent", magnet_uri="h1"
+        )
+        moviedb_manager.services.pipeline.process_torrent_pipeline(
+            qbt_client=mock_qbt,
+            magnet_uri="h1",
+            media_type="tv",
+            settings=settings,
+            movie_db=movie_db_stub,
+            tv_db=tv_db_stub,
+        )
+
+    # Verify both moved
+    tv_lib = local_base / settings.directories.tv / "Show" / "Season 1"
+    existing_files = [f.name for f in tv_lib.glob("*.mkv")]
+    assert "Show - S01E01 - Pilot.mkv" in existing_files
+    assert "Show - S01E02 - Second.mkv" in existing_files
+
+
+def test_pipeline_readonly_destination(
+    settings: moviedb_manager.config.settings.Settings,
+    movie_db_stub: StubMovieDbClient,
+    tv_db_stub: StubTvDbClient,
+) -> None:
+    local_base = Path(settings.directories.local)
+    torrent_dir = local_base / settings.directories.download / "Test.Movie"
+    torrent_dir.mkdir(parents=True)
+    (torrent_dir / "Movie.2023.mkv").touch()
+
+    mock_qbt = MagicMock()
+    mock_qbt.torrents_files.return_value = [{"name": "Test.Movie/Movie.2023.mkv"}]
+    movie_db_stub.results = [
+        StubMovieResult(original_title="Movie", release_date="2023-01-01")
+    ]
+
+    # Make destination read-only
+    movies_dir = local_base / settings.directories.movie
+    movies_dir.mkdir(parents=True, exist_ok=True)
+    movies_dir.chmod(0o555)
+
+    mock_add_patch = patch(
+        "moviedb_manager.services.torrent.add_and_wait_for_completion"
+    )
+    with mock_add_patch as mock_add:
+        mock_add.return_value = TorrentInfo(
+            hash="h1", name="Test.Movie", data_root="Test.Movie", magnet_uri="h1"
+        )
+        with pytest.raises(PermissionError):
+            moviedb_manager.services.pipeline.process_torrent_pipeline(
+                qbt_client=mock_qbt,
+                magnet_uri="h1",
+                media_type="movie",
+                settings=settings,
+                movie_db=movie_db_stub,
+                tv_db=tv_db_stub,
+            )
+    movies_dir.chmod(0o777)

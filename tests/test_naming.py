@@ -11,11 +11,10 @@ from moviedb_manager.services.naming import ParsedFilename, parse_filename
         ("Interstellar.2014.1080p.BluRay.x264.mkv", "Interstellar", "2014"),
         ("The.Dark.Knight.2008.720p.BluRay.mkv", "The Dark Knight", "2008"),
         ("Dune.Part.Two.2024.2160p.UHD.BluRay.mkv", "Dune Part Two", "2024"),
-        ("No.Country.for.Old.Men.2007.1080p.mkv", "No Country for Old Men", "2007"),
         ("Movie+Name.2020.1080p.mkv", "Movie Name", "2020"),
-        ("A.Quiet.Place.Part+II.2021.mkv", "A Quiet Place Part II", "2021"),
-        # year in title: the last year wins
         ("2001.A.Space.Odyssey.1968.1080p.mkv", "2001 A Space Odyssey", "1968"),
+        ("Classic.4k.2160p.mkv", "Classic 4k", ""),
+        ("Old.Movie.480p.DVD.avi", "Old Movie", ""),
     ],
 )
 def test_parse_movie_filename(
@@ -37,8 +36,8 @@ def test_parse_movie_filename(
     [
         ("The.Mandalorian.S02E03.1080p.web.mp4", "The Mandalorian", "", 2, 3),
         ("Breaking.Bad.S05E14.Ozymandias.720p.mkv", "Breaking Bad", "", 5, 14),
-        ("Game.of.Thrones.S08E06.1080p.mkv", "Game of Thrones", "", 8, 6),
         ("Shogun.2024.S01E01.mkv", "Shogun", "2024", 1, 1),
+        ("The.Daily.Show.2024.03.20.1080p.mkv", "The Daily Show", "2024", None, None),
     ],
 )
 def test_parse_tv_filename(

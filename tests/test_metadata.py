@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
+import pytest
+
 from moviedb_manager.services.metadata import (
     resolve_movie_title,
     resolve_tv_episode_title,
@@ -124,3 +128,37 @@ def test_resolve_tv_episode_title_strips_colon(tv_db_stub: StubTvDbClient) -> No
     title, _series_name = resolve_tv_episode_title(parsed, tv_db_stub)
 
     assert ":" not in title
+
+
+def test_resolve_tv_episode_title_utf8(tv_db_stub: StubTvDbClient) -> None:
+    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Über Show")]
+    tv_db_stub.series_info = {"seriesName": "Über Show"}
+    tv_db_stub.episodes = [{"episodeName": "Spécial"}]
+
+    parsed = ParsedFilename(name="Uber Show", season=1, episode=1)
+    title, _ = resolve_tv_episode_title(parsed, tv_db_stub)
+
+    assert "Über Show" in title
+    assert "Spécial" in title
+
+
+def test_resolve_movie_title_api_failure(movie_db_stub: StubMovieDbClient) -> None:
+    # Simulate API failure
+    parsed = ParsedFilename(name="Interstellar", year="2014")
+
+    with (
+        patch.object(movie_db_stub, "search", side_effect=RuntimeError("API Down")),
+        pytest.raises(RuntimeError, match="API Down"),
+    ):
+        resolve_movie_title(parsed, movie_db_stub)
+
+
+def test_resolve_tv_title_api_failure(tv_db_stub: StubTvDbClient) -> None:
+    # Simulate API failure during search
+    parsed = ParsedFilename(name="The Boys", season=1, episode=1)
+
+    with (
+        patch.object(tv_db_stub, "Search", side_effect=RuntimeError("TVDB Down")),
+        pytest.raises(RuntimeError, match="TVDB Down"),
+    ):
+        resolve_tv_episode_title(parsed, tv_db_stub)

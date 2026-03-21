@@ -34,6 +34,10 @@ class StubTvShowResult:
 
 
 class StubTvDbClient:
+    search_results: list[TvShowResult]
+    series_info: dict[str, str]
+    episodes: list[dict[str, Any]]
+
     class StubSearch:
         def __init__(self, results: list[TvShowResult]) -> None:
             self.results = results
@@ -42,22 +46,42 @@ class StubTvDbClient:
             return self.results
 
     class StubSeries:
+        _info: dict[str, str]
+        _episodes: list[dict[str, Any]]
+        Episodes: Any
+
         def __init__(
-            self, info: dict[str, str], episodes: list[dict[str, str]]
+            self, info: dict[str, str], episodes: list[dict[str, Any]]
         ) -> None:
             self._info = info
             self._episodes = episodes
             self.Episodes = self.StubEpisodes(episodes)
 
         class StubEpisodes:
-            def __init__(self, episodes: list[dict[str, str]]) -> None:
+            def __init__(self, episodes: list[dict[str, Any]]) -> None:
                 self.episodes = episodes
+                self.filtered = episodes
 
             def update_filters(self, **kwargs: Any) -> None:
-                pass
+                season = kwargs.get("airedSeason")
+                episode = kwargs.get("airedEpisode")
+                self.filtered = [
+                    ep
+                    for ep in self.episodes
+                    if (
+                        season is None
+                        or "airedSeason" not in ep
+                        or int(ep.get("airedSeason") or 0) == int(season)
+                    )
+                    and (
+                        episode is None
+                        or "airedEpisodeNumber" not in ep
+                        or int(ep.get("airedEpisodeNumber") or 0) == int(episode)
+                    )
+                ]
 
-            def all(self) -> list[dict[str, str]]:
-                return self.episodes
+            def all(self) -> list[dict[str, Any]]:
+                return self.filtered
 
         def info(self) -> dict[str, str]:
             return self._info
@@ -66,7 +90,7 @@ class StubTvDbClient:
         self,
         search_results: list[TvShowResult] | None = None,
         series_info: dict[str, str] | None = None,
-        episodes: list[dict[str, str]] | None = None,
+        episodes: list[dict[str, Any]] | None = None,
     ) -> None:
         self.search_results = search_results or []
         self.series_info = series_info or {"seriesName": "Default Show"}
