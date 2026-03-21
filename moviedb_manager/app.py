@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import collections.abc
 import contextlib
+import json
 import os
 import typing
 from typing import Annotated
@@ -55,7 +56,7 @@ async def lifespan(app: fastapi.FastAPI) -> collections.abc.AsyncGenerator[None]
         startup_errors.append(f"TVDB login failed: {exc}")
 
     # Redis for caching transient torrent status
-    app.state.redis = redis.from_url(settings.redis.url)
+    app.state.redis = redis.from_url(settings.redis.url, decode_responses=True)
 
     q = settings.qbittorrent
     try:
@@ -104,7 +105,7 @@ async def run_pipeline_task(magnet_uri: str, media_type: str) -> None:
         password=q.password,
     )
 
-    redis_client = redis.from_url(settings.redis.url)
+    redis_client = redis.from_url(settings.redis.url, decode_responses=True)
 
     async with AsyncSessionLocal() as db_session:
         await process_torrent_pipeline(
@@ -174,7 +175,7 @@ async def event_generator(
                     updates.append(decoded)
 
             if updates:
-                yield {"data": updates}
+                yield {"data": json.dumps(updates)}
 
             await asyncio.sleep(2)
     except asyncio.CancelledError:
