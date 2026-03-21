@@ -42,13 +42,11 @@ function App() {
     { id: "history", icon: History, label: "Reports" },
   ];
 
-  // SSE for real-time status
   useEffect(() => {
     const eventSource = new EventSource("/api/torrents/stream");
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      // SSE returns an array of torrent updates
       if (Array.isArray(data)) {
         setTorrents(data.map((torrent) => normalizeTorrent(torrent)));
       }
@@ -66,7 +64,6 @@ function App() {
     void getStatus().then((response) => setStatus(response.data));
   }, []);
 
-  // Fetch history
   useEffect(() => {
     if (activeTab === "history") {
       getHistory().then((res) => setHistory(res.data));
@@ -84,8 +81,8 @@ function App() {
       setTimeout(() => setActiveTab("status"), 1000);
     } catch (error: unknown) {
       const messageText = axios.isAxiosError(error)
-        ? ((error.response?.data as { detail?: string } | undefined)?.detail ??
-          "Failed to add torrent")
+        ? (((error.response?.data as { detail?: string } | undefined)
+            ?.detail as string | undefined) ?? "Failed to add torrent")
         : "Failed to add torrent";
 
       setMessage({ text: messageText, type: "error" });
@@ -93,6 +90,8 @@ function App() {
       setLoading(false);
     }
   };
+
+  const startupErrors = status?.errors ?? [];
 
   function normalizeTorrent(torrent: Torrent): Torrent {
     return {
@@ -169,6 +168,17 @@ function App() {
       </header>
 
       <main className="w-full max-w-5xl p-6 sm:p-10 flex-1">
+        {startupErrors.length > 0 && (
+          <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">
+            <p className="font-semibold">Startup errors</p>
+            <ul className="mt-2 space-y-1 list-disc list-inside text-red-100/90">
+              {startupErrors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {activeTab === "download" && (
           <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">

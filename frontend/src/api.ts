@@ -24,6 +24,7 @@ export interface HistoryItem {
 export interface StatusResponse {
   status: string;
   version: string;
+  errors?: string[];
 }
 
 export const addTorrent = (magnet_uri: string, media_type: "movie" | "tv") =>

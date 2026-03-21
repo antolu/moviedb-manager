@@ -25,27 +25,51 @@ from .models.media import MediaType
 from .services.pipeline import process_torrent_pipeline
 
 
+class ApiStatusResponse(typing.TypedDict):
+    status: str
+    version: str
+    errors: list[str]
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: fastapi.FastAPI) -> collections.abc.AsyncGenerator[None]:
+    startup_errors: list[str] = []
+
     # Initialize API clients
-    app.state.movie_db = TmdbMovieAdapter(settings.apikeys.tmdb)
-    app.state.tv_db = TvDbAdapter(settings.apikeys.tvdb)
+    try:
+        if not settings.apikeys.tmdb:
+            msg = "TMDB API key is not configured"
+            raise ValueError(msg)
+        app.state.movie_db = TmdbMovieAdapter(settings.apikeys.tmdb)
+    except Exception as exc:
+        app.state.movie_db = None
+        startup_errors.append(f"TMDB login failed: {exc}")
+
+    try:
+        if not settings.apikeys.tvdb:
+            msg = "TVDB API key is not configured"
+            raise ValueError(msg)
+        app.state.tv_db = TvDbAdapter(settings.apikeys.tvdb)
+    except Exception as exc:
+        app.state.tv_db = None
+        startup_errors.append(f"TVDB login failed: {exc}")
 
     # Redis for caching transient torrent status
     app.state.redis = redis.from_url(settings.redis.url)
 
     q = settings.qbittorrent
-    app.state.qbt_client = qbittorrentapi.Client(
-        host=f"{q.host}:{q.port}",
-        username=q.user,
-        password=q.password,
-    )
-
-    # Basic check
     try:
+        app.state.qbt_client = qbittorrentapi.Client(
+            host=f"{q.host}:{q.port}",
+            username=q.user,
+            password=q.password,
+        )
         await asyncio.to_thread(app.state.qbt_client.app_version)
     except Exception as e:
-        print(f"Warning: Could not connect to qBittorrent: {e}")
+        app.state.qbt_client = None
+        startup_errors.append(f"qBittorrent login failed: {e}")
+
+    app.state.startup_errors = startup_errors
 
     yield
 
@@ -59,8 +83,13 @@ app = fastapi.FastAPI(lifespan=lifespan)
 
 
 @app.get("/api/status")
-async def get_api_status() -> dict[str, str]:
-    return {"status": "ok", "version": __version__}
+async def get_api_status() -> ApiStatusResponse:
+    errors = list(getattr(app.state, "startup_errors", []))
+    return {
+        "status": "ok" if not errors else "degraded",
+        "version": __version__,
+        "errors": errors,
+    }
 
 
 async def run_pipeline_task(magnet_uri: str, media_type: str) -> None:
@@ -101,6 +130,10 @@ async def add_torrent(
     """Submit a new magnet link for processing."""
     if not magnet_uri.startswith("magnet:?xt=urn:btih:"):
         raise fastapi.HTTPException(status_code=400, detail="Invalid magnet URI")
+
+    startup_errors = list(getattr(app.state, "startup_errors", []))
+    if startup_errors:
+        raise fastapi.HTTPException(status_code=503, detail="; ".join(startup_errors))
 
     background_tasks.add_task(run_pipeline_task, magnet_uri, media_type)
     return {"message": "Torrent added to queue", "magnet_uri": magnet_uri}
