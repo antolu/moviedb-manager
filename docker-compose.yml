@@ -64,7 +64,9 @@ services:
       qbittorrent:
         condition: service_started
     ports:
-      - "5000:5000"
+      - "6000:5000"
+    env_file:
+      - .env
     environment:
       - MOVIEDB_DATABASE__HOST=db
       - MOVIEDB_DATABASE__PORT=5432

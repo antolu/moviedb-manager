@@ -21,7 +21,7 @@ RUN APP_VERSION="$(cat /tmp/app_version)" && \
     npm run build
 
 # Stage 2: Build the Python application
-FROM python:3.12-slim
+FROM python:3.14-slim
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
