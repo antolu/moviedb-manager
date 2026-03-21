@@ -62,7 +62,7 @@ services:
       qbittorrent:
         condition: service_started
     ports:
-      - "6000:5000"
+      - "6001:5000"
     env_file:
       - .env
     environment:
