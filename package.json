@@ -9,6 +9,8 @@
     "@semantic-release/git": "^10.0.0"
   },
   "scripts": {
+    "lint:frontend": "cd frontend && npm run lint",
+    "format:frontend": "cd frontend && npm run format",
     "release": "semantic-release"
   }
 }

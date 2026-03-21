@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: moviedb-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=moviedb
+      - POSTGRES_PASSWORD=moviedb
+      - POSTGRES_DB=moviedb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moviedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moviedb-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: moviedb-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moviedb-network
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:5.1.4
+    container_name: moviedb-qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - WEBUI_PORT=8080
+    volumes:
+      - ./qbt_config:/config
+      - ./downloads:/downloads
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    restart: unless-stopped
+    networks:
+      - moviedb-network
+
+  app:
+    build: .
+    container_name: moviedb-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_started
+    ports:
+      - "5000:5000"
+    environment:
+      - MOVIEDB_DATABASE__HOST=db
+      - MOVIEDB_DATABASE__PORT=5432
+      - MOVIEDB_DATABASE__USER=moviedb
+      - MOVIEDB_DATABASE__PASSWORD=moviedb
+      - MOVIEDB_DATABASE__NAME=moviedb
+      - MOVIEDB_REDIS__URL=redis://redis:6379/0
+      - MOVIEDB_QBITTORRENT__HOST=qbittorrent
+      - MOVIEDB_QBITTORRENT__PORT=8080
+      - MOVIEDB_QBITTORRENT__USER=admin
+      - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./downloads:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - moviedb-network
+
+networks:
+  moviedb-network:
+    driver: bridge
+
+volumes:
+  pgdata:
