@@ -1,17 +1,17 @@
 [project]
 dependencies = [
-    "fastapi",
-    "uvicorn",
-    "jinja2",
-    "python-multipart",
-    "qbittorrent-api",
-    "pyyaml",
-    "tmdbv3api",
-    "tvdbsimple",
-    "celery",
-    "redis",
-    "pydantic",
-    "pydantic-settings",
+    "fastapi~=0.135.1",
+    "uvicorn~=0.42.0",
+    "jinja2~=3.1.6",
+    "python-multipart~=0.0.22",
+    "qbittorrent-api~=2025.11.1",
+    "pyyaml~=6.0.3",
+    "tmdbv3api~=1.9.0",
+    "tvdbsimple~=1.0.6",
+    "celery~=5.6.2",
+    "redis~=7.3.0",
+    "pydantic~=2.12.5",
+    "pydantic-settings~=2.13.1",
 ]
 name = "moviedb-manager"
 dynamic = ["version", "readme"]
@@ -41,8 +41,8 @@ homepage = "https://github.com/antolu/moviedb-manager"
 repository = "https://github.com/antolu/moviedb-manager"
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov"]
-dev = ["pre-commit", "ruff", "mypy"]
+test = ["pytest~=9.0.2", "pytest-cov~=7.0.0"]
+dev = ["pre-commit~=4.5.1", "ruff~=0.15.7", "mypy~=1.19.1"]
 
 [build-system]
 requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 9.2", "wheel"]
