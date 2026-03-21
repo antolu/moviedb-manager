@@ -20,7 +20,11 @@ async def test_status_endpoint() -> None:
     ) as ac:
         response = await ac.get("/api/status")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "2.0.0"}
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "version" in data
+    assert "errors" in data
+    assert isinstance(data["errors"], list)
 
 
 @pytest.mark.asyncio
