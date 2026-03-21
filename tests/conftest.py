@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
+import unittest.mock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from moviedb_manager.api.protocols import MovieSearchResult
 from moviedb_manager.config.settings import Settings
@@ -78,3 +80,13 @@ def settings(tmp_path: pathlib.Path) -> Settings:
     s.directories.local = str(tmp_path)
     s.directories.remote = str(tmp_path)
     return s
+
+
+@pytest.fixture
+def mock_db() -> unittest.mock.AsyncMock:
+    return unittest.mock.AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_redis() -> unittest.mock.AsyncMock:
+    return unittest.mock.AsyncMock()

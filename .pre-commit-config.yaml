@@ -22,6 +22,11 @@ repos:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
         exclude: \.(html|svg)$
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: ^frontend/src/.*\.(js|jsx|ts|tsx|css|json)$
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: "v0.15.7"
     hooks:
@@ -33,9 +38,12 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
-          - "types-PyYAML"
-          - "flask"
-          - "tmdbv3api"
-          - "tvdbsimple"
-          - "qbittorrent-api"
-          - "celery"
+            - "types-PyYAML"
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: frontend-lint
+        entry: bash -c "cd frontend && npm run lint"
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false

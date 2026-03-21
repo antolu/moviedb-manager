@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import typing
 
 if typing.TYPE_CHECKING:
@@ -7,11 +8,11 @@ if typing.TYPE_CHECKING:
     from .naming import ParsedFilename
 
 
-def resolve_movie_title(
+async def resolve_movie_title(
     parsed: ParsedFilename,
     client: MovieDbClient,
 ) -> str:
-    results = client.search(parsed.name)
+    results = await asyncio.to_thread(client.search, parsed.name)
     if not results:
         return parsed.name
 
@@ -32,11 +33,11 @@ def resolve_movie_title(
     return title.replace(r":", "")
 
 
-def resolve_tv_episode_title(
+async def resolve_tv_episode_title(
     parsed: ParsedFilename,
     client: TvDbClient,
 ) -> tuple[str, str]:
-    results = client.search_series(parsed.name)
+    results = await asyncio.to_thread(client.search_series, parsed.name)
     if not results:
         return parsed.name, "Unknown Show"
 
@@ -44,8 +45,10 @@ def resolve_tv_episode_title(
     season = parsed.season or 1
     episode = parsed.episode or 1
 
-    series_name = client.get_series_name(series_id)
-    episode_name = client.get_episode_name(series_id, season, episode)
+    series_name = await asyncio.to_thread(client.get_series_name, series_id)
+    episode_name = await asyncio.to_thread(
+        client.get_episode_name, series_id, season, episode
+    )
 
     episode_code = f"S{season:02d}E{episode:02d}"
     title = f"{series_name} - {episode_code} - {episode_name}"

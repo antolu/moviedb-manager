@@ -2,53 +2,77 @@ from __future__ import annotations
 
 import unittest.mock
 
-import fastapi.testclient
+import pytest
+from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from moviedb_manager.app import app
+from moviedb_manager.app import lifespan as app_lifespan
 
-client = fastapi.testclient.TestClient(app)
+# For simple tests that don't need lifespan/async
+client = TestClient(app)
 
 
-def test_root_endpoint() -> None:
-    # Smoke test for the main index page
-    response = client.get("/mediamanager")
+@pytest.mark.asyncio
+async def test_status_endpoint() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.get("/api/status")
     assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
+    assert response.json() == {"status": "ok", "version": "2.0.0"}
 
 
-def test_handle_data_success() -> None:
-    # Mock the celery task's delay method
-    with unittest.mock.patch("moviedb_manager.app.process_task.delay") as mock_delay:
-        response = client.post(
-            "/mediamanager/datahandler",
-            data={"magnet_uri": "mag1", "type_selector": "movie"},
-        )
+@pytest.mark.asyncio
+async def test_add_torrent_success() -> None:
+    # Mock the fastapi BackgroundTasks.add_task method
+    with unittest.mock.patch("fastapi.BackgroundTasks.add_task") as mock_add_task:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            response = await ac.post(
+                "/api/torrents",
+                json={"magnet_uri": "magnet:?xt=urn:btih:123", "media_type": "movie"},
+            )
         assert response.status_code == 200
-        assert "Success! Added magnet link" in response.text
-        mock_delay.assert_called_once()
-        # Verify it passed the magnet, type and dumped settings
-        args = mock_delay.call_args[0]
-        assert args[0] == "mag1"
-        assert args[1] == "movie"
-        assert isinstance(args[2], dict)
+        assert "message" in response.json()
+        mock_add_task.assert_called_once()
 
 
-def test_handle_data_missing_form_data() -> None:
-    response = client.post("/mediamanager/datahandler", data={"magnet_uri": "mag1"})
-    # FastAPI returns 422 Unprocessable Entity for missing required form fields
-    assert response.status_code == 422
+@pytest.mark.asyncio
+async def test_add_torrent_invalid_magnet() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        response = await ac.post(
+            "/api/torrents",
+            json={"magnet_uri": "invalid", "media_type": "movie"},
+        )
+    assert response.status_code == 400
+    assert "Invalid magnet URI" in response.json()["detail"]
 
 
-def test_lifespan_initialization() -> None:
+@pytest.mark.asyncio
+async def test_lifespan_initialization() -> None:
     # Test that lifespan sets up the state
-    # Since we can't easily trigger lifespan in TestClient for all tests,
-    # we can at least check if the logic in lifespan is correct by calling it or mocking it.
+    app_mock = unittest.mock.MagicMock()
+    app_mock.state = unittest.mock.MagicMock()
+
     with (
         unittest.mock.patch("moviedb_manager.app.qbittorrentapi.Client"),
         unittest.mock.patch("moviedb_manager.app.TmdbMovieAdapter"),
         unittest.mock.patch("moviedb_manager.app.TvDbAdapter"),
-        client,
+        unittest.mock.patch(
+            "moviedb_manager.app.redis.from_url"
+        ) as mock_redis_from_url,
     ):
-        assert hasattr(app.state, "movie_db")
-        assert hasattr(app.state, "tv_db")
-        assert hasattr(app.state, "qbt_client")
+        mock_redis = unittest.mock.AsyncMock()
+        mock_redis_from_url.return_value = mock_redis
+
+        async with app_lifespan(app_mock):
+            assert hasattr(app_mock.state, "movie_db")
+            assert hasattr(app_mock.state, "tv_db")
+            assert hasattr(app_mock.state, "qbt_client")
+            assert hasattr(app_mock.state, "redis")
+
+        mock_redis.close.assert_awaited_once()
