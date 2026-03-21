@@ -1,6 +1,0 @@
-flask
-pyyaml
-qbittorrent-api
-tmdbv3api
-tvdbsimple
-uwsgi
