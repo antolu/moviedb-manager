@@ -19,4 +19,4 @@ jobs:
       - name: Run commitlint
         run: |
           echo "${{ github.event.pull_request.title }}" > /tmp/pr_title.txt
-          npx -y -p @commitlint/cli@^17.0.0 -p @commitlint/config-conventional@^17.0.0 commitlint --edit /tmp/pr_title.txt
+          npx -y -p @commitlint/cli@^17.0.0 commitlint --config commitlint.config.cjs --edit /tmp/pr_title.txt
