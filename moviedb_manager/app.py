@@ -1,131 +1,100 @@
 from __future__ import annotations
 
+import collections.abc
+import contextlib
 import os
-from time import sleep
+import typing
 
-import tvdbsimple as tvdb
+import celery
+import fastapi
+import fastapi.responses
+import fastapi.templating
+import qbittorrentapi
 import uvicorn
-from celery import Celery
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from qbittorrentapi import Client
-from tmdbv3api import Movie, TMDb
 
-from .config import settings
-from .filemanagement import Media, MediaInit
+from .api.tmdb import TmdbMovieAdapter
+from .api.tvdb import TvDbAdapter
+from .config.settings import Settings, settings
+from .models.media import MediaType
+from .services.pipeline import process_torrent_pipeline
 
-app = FastAPI()
-
-# Setup templates
-templates = Jinja2Templates(
-    directory=os.path.join(os.path.dirname(__file__), "templates")
-)
-
-celery = Celery(
+# Setup Celery
+celery_app = celery.Celery(
     "moviedb-manager",
     broker=settings.celery.celery_url,
     backend=settings.celery.celery_result,
 )
-tmdb = TMDb()
-movie = Movie()
 
 
-def init_services() -> None:
-    tmdb.api_key = settings.apikeys.tmdb
-    tvdb.KEYS.API_KEY = settings.apikeys.tvdb
+@contextlib.asynccontextmanager
+async def lifespan(app: fastapi.FastAPI) -> collections.abc.AsyncGenerator[None]:  # noqa: RUF029
+    # Initialize API clients
+    app.state.movie_db = TmdbMovieAdapter(settings.apikeys.tmdb)
+    app.state.tv_db = TvDbAdapter(settings.apikeys.tvdb)
 
     q = settings.qbittorrent
-    client = Client(
+    app.state.qbt_client = qbittorrentapi.Client(
         host=f"{q.host}:{q.port}",
         username=q.user,
         password=q.password,
     )
 
-    print(f"Using qBittorrent Version: {client.app_version()}")
+    print(f"Using qBittorrent Version: {app.state.qbt_client.app_version()}")
+    yield
 
 
-@celery.task
-def process(magnet_uri: str, typ: str) -> bool:
-    q = settings.qbittorrent
-    client = Client(
+app = fastapi.FastAPI(lifespan=lifespan)
+
+# Setup templates
+templates = fastapi.templating.Jinja2Templates(
+    directory=os.path.join(os.path.dirname(__file__), "templates")
+)
+
+
+@celery_app.task
+def process_task(
+    magnet_uri: str, typ: str, settings_dict: dict[str, typing.Any]
+) -> bool:
+    # Reconstruct settings and clients for the worker
+    worker_settings = Settings.model_validate(settings_dict)
+
+    movie_db = TmdbMovieAdapter(worker_settings.apikeys.tmdb)
+    tv_db = TvDbAdapter(worker_settings.apikeys.tvdb)
+
+    q = worker_settings.qbittorrent
+    qbt_client = qbittorrentapi.Client(
         host=f"{q.host}:{q.port}",
         username=q.user,
         password=q.password,
     )
-    d = settings.directories
 
-    res = client.torrents_add(
-        urls=[magnet_uri],
-        save_path=os.path.join(d.remote, d.download),
-        is_paused=True,
+    process_torrent_pipeline(
+        magnet_uri=magnet_uri,
+        media_type=typing.cast(MediaType, typ),
+        qbt_client=qbt_client,
+        movie_db=movie_db,
+        tv_db=tv_db,
+        settings=worker_settings,
     )
-
-    if res != "Ok.":
-        print(f"Torrent add failed: {res}")
-
-    torrent_list = client.torrents_info(status_filter="paused")
-    torrent: dict[str, str] | None = None
-
-    for t in torrent_list:
-        if t["magnet_uri"] == magnet_uri:
-            client.torrents_resume(str(t["hash"]))
-            torrent = {
-                "name": str(t["name"]),
-                "magnet_uri": str(t["magnet_uri"]),
-                "hash": str(t["hash"]),
-            }
-            break
-
-    if not torrent:
-        print("Could not find added torrent")
-        return False
-
-    print("Torrent in progress")
-    while client.torrents_info(hash=torrent["hash"])[0]["state"] != "uploading":
-        sleep(1)
-
-    # this assumes that the 0th file is in the root directory of the download
-    torrent["data_root"] = os.path.split(
-        str(client.torrents_files(hash=torrent["hash"])[0]["name"])
-    )[0]
-    client.torrents_delete(delete_files=False, hashes=torrent["hash"])
-
-    print("Torrent complete")
-
-    media = Media(
-        settings,
-        MediaInit(
-            name=torrent["name"],
-            magnet_uri=torrent["magnet_uri"],
-            data_root=torrent["data_root"],
-            tmdb=movie,
-            tvdb=tvdb,
-            typ=typ,
-        ),
-    )
-
-    media.process()
 
     return True
 
 
-@app.get("/mediamanager", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
+@app.get("/mediamanager", response_class=fastapi.responses.HTMLResponse)
+async def index(request: fastapi.Request) -> fastapi.responses.HTMLResponse:
     return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/mediamanager/datahandler")
 async def handle_data(
-    magnet_uri: str = Form(...), type_selector: str = Form(...)
+    magnet_uri: str = fastapi.Form(...), type_selector: str = fastapi.Form(...)
 ) -> str:
     print(f"Received request with magnet: {magnet_uri}")
-    process.delay(magnet_uri, type_selector)
+    process_task.delay(magnet_uri, type_selector, settings.model_dump())
     return f"Success! Added magnet link {magnet_uri}"
 
 
 def main() -> None:
-    init_services()
     uvicorn.run(app, host="0.0.0.0", port=5000)
 
 
