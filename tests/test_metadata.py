@@ -13,7 +13,6 @@ from tests.conftest import (
     StubMovieDbClient,
     StubMovieResult,
     StubTvDbClient,
-    StubTvShowResult,
 )
 
 
@@ -75,9 +74,9 @@ def test_resolve_movie_title_strips_colon(movie_db_stub: StubMovieDbClient) -> N
 
 
 def test_resolve_tv_episode_title(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="The Mandalorian")]
-    tv_db_stub.series_info = {"seriesName": "The Mandalorian"}
-    tv_db_stub.episodes = [{"episodeName": "The Heiress"}]
+    tv_db_stub.search_results = [{"id": 1, "name": "The Mandalorian"}]
+    tv_db_stub.series_name = "The Mandalorian"
+    tv_db_stub.episode_name = "The Heiress"
 
     parsed = ParsedFilename(name="Mandalorian", season=2, episode=3)
     title, series_name = resolve_tv_episode_title(parsed, tv_db_stub)
@@ -96,9 +95,9 @@ def test_resolve_tv_episode_title_no_search_results(tv_db_stub: StubTvDbClient) 
 
 
 def test_resolve_tv_episode_title_no_episodes(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Some Show")]
-    tv_db_stub.series_info = {"seriesName": "Some Show"}
-    tv_db_stub.episodes = []
+    tv_db_stub.search_results = [{"id": 1, "name": "Some Show"}]
+    tv_db_stub.series_name = "Some Show"
+    tv_db_stub.episode_name = "Unknown Episode"
 
     parsed = ParsedFilename(name="Some Show", season=1, episode=1)
     title, _ = resolve_tv_episode_title(parsed, tv_db_stub)
@@ -109,9 +108,9 @@ def test_resolve_tv_episode_title_no_episodes(tv_db_stub: StubTvDbClient) -> Non
 def test_resolve_tv_episode_title_defaults_season_episode(
     tv_db_stub: StubTvDbClient,
 ) -> None:
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Show")]
-    tv_db_stub.series_info = {"seriesName": "Show"}
-    tv_db_stub.episodes = [{"episodeName": "Pilot"}]
+    tv_db_stub.search_results = [{"id": 1, "name": "Show"}]
+    tv_db_stub.series_name = "Show"
+    tv_db_stub.episode_name = "Pilot"
 
     parsed = ParsedFilename(name="Show", season=None, episode=None)
     title, _ = resolve_tv_episode_title(parsed, tv_db_stub)
@@ -120,9 +119,9 @@ def test_resolve_tv_episode_title_defaults_season_episode(
 
 
 def test_resolve_tv_episode_title_strips_colon(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Show: Drama")]
-    tv_db_stub.series_info = {"seriesName": "Show: Drama"}
-    tv_db_stub.episodes = [{"episodeName": "Pilot: Part 1"}]
+    tv_db_stub.search_results = [{"id": 1, "name": "Show: Drama"}]
+    tv_db_stub.series_name = "Show: Drama"
+    tv_db_stub.episode_name = "Pilot: Part 1"
 
     parsed = ParsedFilename(name="Show Drama", season=1, episode=1)
     title, _series_name = resolve_tv_episode_title(parsed, tv_db_stub)
@@ -131,9 +130,9 @@ def test_resolve_tv_episode_title_strips_colon(tv_db_stub: StubTvDbClient) -> No
 
 
 def test_resolve_tv_episode_title_utf8(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Über Show")]
-    tv_db_stub.series_info = {"seriesName": "Über Show"}
-    tv_db_stub.episodes = [{"episodeName": "Spécial"}]
+    tv_db_stub.search_results = [{"id": 1, "name": "Über Show"}]
+    tv_db_stub.series_name = "Über Show"
+    tv_db_stub.episode_name = "Spécial"
 
     parsed = ParsedFilename(name="Uber Show", season=1, episode=1)
     title, _ = resolve_tv_episode_title(parsed, tv_db_stub)
@@ -143,7 +142,6 @@ def test_resolve_tv_episode_title_utf8(tv_db_stub: StubTvDbClient) -> None:
 
 
 def test_resolve_movie_title_api_failure(movie_db_stub: StubMovieDbClient) -> None:
-    # Simulate API failure
     parsed = ParsedFilename(name="Interstellar", year="2014")
 
     with (
@@ -154,11 +152,12 @@ def test_resolve_movie_title_api_failure(movie_db_stub: StubMovieDbClient) -> No
 
 
 def test_resolve_tv_title_api_failure(tv_db_stub: StubTvDbClient) -> None:
-    # Simulate API failure during search
     parsed = ParsedFilename(name="The Boys", season=1, episode=1)
 
     with (
-        patch.object(tv_db_stub, "Search", side_effect=RuntimeError("TVDB Down")),
+        patch.object(
+            tv_db_stub, "search_series", side_effect=RuntimeError("TVDB Down")
+        ),
         pytest.raises(RuntimeError, match="TVDB Down"),
     ):
         resolve_tv_episode_title(parsed, tv_db_stub)

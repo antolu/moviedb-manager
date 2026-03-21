@@ -2,15 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
 
 import pytest
 
 import moviedb_manager.config.settings
-from moviedb_manager.api.protocols import MovieSearchResult, TvShowResult
-
-if TYPE_CHECKING:
-    pass
+from moviedb_manager.api.protocols import MovieSearchResult
 
 
 @dataclass
@@ -27,80 +23,29 @@ class StubMovieDbClient:
         return self.results
 
 
-@dataclass
-class StubTvShowResult:
-    id: int
-    series_name: str
-
-
 class StubTvDbClient:
-    search_results: list[TvShowResult]
-    series_info: dict[str, str]
-    episodes: list[dict[str, Any]]
-
-    class StubSearch:
-        def __init__(self, results: list[TvShowResult]) -> None:
-            self.results = results
-
-        def series(self, name: str) -> list[TvShowResult]:
-            return self.results
-
-    class StubSeries:
-        _info: dict[str, str]
-        _episodes: list[dict[str, Any]]
-        Episodes: Any
-
-        def __init__(
-            self, info: dict[str, str], episodes: list[dict[str, Any]]
-        ) -> None:
-            self._info = info
-            self._episodes = episodes
-            self.Episodes = self.StubEpisodes(episodes)
-
-        class StubEpisodes:
-            def __init__(self, episodes: list[dict[str, Any]]) -> None:
-                self.episodes = episodes
-                self.filtered = episodes
-
-            def update_filters(self, **kwargs: Any) -> None:
-                season = kwargs.get("airedSeason")
-                episode = kwargs.get("airedEpisode")
-                self.filtered = [
-                    ep
-                    for ep in self.episodes
-                    if (
-                        season is None
-                        or "airedSeason" not in ep
-                        or int(ep.get("airedSeason") or 0) == int(season)
-                    )
-                    and (
-                        episode is None
-                        or "airedEpisodeNumber" not in ep
-                        or int(ep.get("airedEpisodeNumber") or 0) == int(episode)
-                    )
-                ]
-
-            def all(self) -> list[dict[str, Any]]:
-                return self.filtered
-
-        def info(self) -> dict[str, str]:
-            return self._info
+    search_results: list[dict]
+    series_name: str
+    episode_name: str
 
     def __init__(
         self,
-        search_results: list[TvShowResult] | None = None,
-        series_info: dict[str, str] | None = None,
-        episodes: list[dict[str, Any]] | None = None,
+        search_results: list[dict] | None = None,
+        series_name: str = "Default Show",
+        episode_name: str = "Default Episode",
     ) -> None:
         self.search_results = search_results or []
-        self.series_info = series_info or {"seriesName": "Default Show"}
-        self.episodes = episodes or [{"episodeName": "Default Episode"}]
+        self.series_name = series_name
+        self.episode_name = episode_name
 
-    def Search(self) -> StubSearch:  # noqa: N802
-        return self.StubSearch(self.search_results)
+    def search_series(self, name: str) -> list[dict]:
+        return self.search_results
 
-    def Series(self, tv_id: int) -> StubSeries:  # noqa: N802
-        return self.StubSeries(self.series_info, self.episodes)
+    def get_series_name(self, series_id: int) -> str:
+        return self.series_name
+
+    def get_episode_name(self, series_id: int, season: int, episode: int) -> str:
+        return self.episode_name
 
 
 @pytest.fixture

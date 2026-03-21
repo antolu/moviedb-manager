@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -15,18 +15,9 @@ class MovieDbClient(Protocol):
 
 
 @runtime_checkable
-class TvShowResult(Protocol):
-    id: int
-    series_name: str
-
-
-@runtime_checkable
-class TvSearchResult(Protocol):
-    def series(self, name: str) -> list[TvShowResult]: ...
-
-
-@runtime_checkable
 class TvDbClient(Protocol):
-    def Search(self) -> TvSearchResult: ...  # noqa: N802
+    def search_series(self, name: str) -> list[dict]: ...
 
-    def Series(self, tv_id: int) -> Any: ...  # noqa: N802
+    def get_series_name(self, series_id: int) -> str: ...
+
+    def get_episode_name(self, series_id: int, season: int, episode: int) -> str: ...

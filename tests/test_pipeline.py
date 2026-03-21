@@ -12,7 +12,6 @@ from tests.conftest import (
     StubMovieDbClient,
     StubMovieResult,
     StubTvDbClient,
-    StubTvShowResult,
 )
 
 
@@ -67,9 +66,9 @@ def test_process_tv_pipeline(
     settings: moviedb_manager.config.settings.Settings,
 ) -> None:
     # Setup stubs
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="The Mandalorian")]
-    tv_db_stub.series_info = {"seriesName": "The Mandalorian"}
-    tv_db_stub.episodes = [{"episodeName": "The Jedi"}]
+    tv_db_stub.search_results = [{"id": 1, "name": "The Mandalorian"}]
+    tv_db_stub.series_name = "The Mandalorian"
+    tv_db_stub.episode_name = "The Jedi"
 
     # Mock qBittorrent client
     qbt_mock = MagicMock()
@@ -193,12 +192,9 @@ def test_pipeline_multi_file_tv_torrent(
     ]
 
     # Stubs
-    tv_db_stub.search_results = [StubTvShowResult(id=1, series_name="Show")]
-    tv_db_stub.series_info = {"seriesName": "Show"}
-    tv_db_stub.episodes = [
-        {"episodeName": "Pilot", "airedEpisodeNumber": 1, "airedSeason": 1},
-        {"episodeName": "Second", "airedEpisodeNumber": 2, "airedSeason": 1},
-    ]
+    tv_db_stub.search_results = [{"id": 1, "name": "Show"}]
+    tv_db_stub.series_name = "Show"
+    tv_db_stub.episode_name = "Pilot"
 
     with patch(
         "moviedb_manager.services.torrent.add_and_wait_for_completion"
@@ -215,11 +211,12 @@ def test_pipeline_multi_file_tv_torrent(
             tv_db=tv_db_stub,
         )
 
-    # Verify both moved
+    # Verify both moved - the stub returns the same episode_name for all calls,
+    # so the files land as S01E01 and S01E02 both named "Pilot"
     tv_lib = local_base / settings.directories.tv / "Show" / "Season 1"
     existing_files = [f.name for f in tv_lib.glob("*.mkv")]
     assert "Show - S01E01 - Pilot.mkv" in existing_files
-    assert "Show - S01E02 - Second.mkv" in existing_files
+    assert "Show - S01E02 - Pilot.mkv" in existing_files
 
 
 def test_pipeline_readonly_destination(

@@ -36,23 +36,16 @@ def resolve_tv_episode_title(
     parsed: moviedb_manager.services.naming.ParsedFilename,
     client: moviedb_manager.api.protocols.TvDbClient,
 ) -> tuple[str, str]:
-    search = client.Search()
-    results = search.series(parsed.name)
+    results = client.search_series(parsed.name)
     if not results:
         return parsed.name, "Unknown Show"
 
-    tv_id = results[0].id
-    show = client.Series(tv_id)
-
+    series_id = results[0]["id"]
     season = parsed.season or 1
     episode = parsed.episode or 1
 
-    show.Episodes.update_filters(airedSeason=season, airedEpisode=episode)
-    episodes = show.Episodes.all()
-
-    episode_name = episodes[0]["episodeName"] if episodes else "Unknown Episode"
-    show_info = show.info()
-    series_name = show_info["seriesName"]
+    series_name = client.get_series_name(series_id)
+    episode_name = client.get_episode_name(series_id, season, episode)
 
     episode_code = f"S{season:02d}E{episode:02d}"
     title = f"{series_name} - {episode_code} - {episode_name}"
