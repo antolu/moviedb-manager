@@ -44,6 +44,7 @@ async def test_add_and_wait_for_completion_success() -> None:
     # Verify blocking calls were offloaded
     mock_client.torrents_add.assert_called_once()
     mock_client.torrents_resume.assert_called_with(hashes="mag1")
+    mock_client.torrents_files.assert_called_with(torrent_hash="mag1")
     mock_client.torrents_delete.assert_called_with(delete_files=False, hashes="mag1")
 
 

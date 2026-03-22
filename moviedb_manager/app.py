@@ -21,7 +21,13 @@ from . import __version__
 from .api.tmdb import TmdbMovieAdapter
 from .api.tvdb import TvDbAdapter
 from .config.settings import settings
-from .db import AsyncSessionLocal, DownloadedFile, TorrentDownload, get_db
+from .db import (
+    AsyncSessionLocal,
+    DownloadedFile,
+    DownloadStatus,
+    TorrentDownload,
+    get_db,
+)
 from .models.media import MediaType
 from .services.pipeline import process_torrent_pipeline
 
@@ -71,6 +77,25 @@ async def lifespan(app: fastapi.FastAPI) -> collections.abc.AsyncGenerator[None]
         startup_errors.append(f"qBittorrent login failed: {e}")
 
     app.state.startup_errors = startup_errors
+    app.state.background_tasks = set()
+
+    # Resume interrupted downloads
+    if not startup_errors:
+        async with AsyncSessionLocal() as db:
+            query = select(TorrentDownload).where(
+                TorrentDownload.status.in_([
+                    DownloadStatus.PENDING,
+                    DownloadStatus.DOWNLOADING,
+                ])
+            )
+            result = await db.execute(query)
+            pending = result.scalars().all()
+            for torrent in pending:
+                task = asyncio.create_task(
+                    run_pipeline_task(torrent.magnet_uri, torrent.media_type)
+                )
+                app.state.background_tasks.add(task)
+                task.add_done_callback(app.state.background_tasks.discard)
 
     yield
 
@@ -91,6 +116,12 @@ async def get_api_status() -> ApiStatusResponse:
         "version": __version__,
         "errors": errors,
     }
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Root endpoint for basic health check and version info."""
+    return {"message": "MovieDB Manager API", "version": __version__}
 
 
 async def run_pipeline_task(magnet_uri: str, media_type: str) -> None:

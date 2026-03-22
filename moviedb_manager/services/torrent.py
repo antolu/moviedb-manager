@@ -34,17 +34,20 @@ async def add_and_wait_for_completion(
         raise ValueError(msg)
     torrent_hash = match.group(1).lower()
 
-    # Add the torrent (paused to avoid racing)
-    res = await asyncio.to_thread(
-        client.torrents_add,
-        urls=[magnet_uri],
-        save_path=str(save_path),
-        is_paused=True,
-    )
-
-    if res != "Ok.":
-        msg = f"Torrent add failed: {res}"
-        raise RuntimeError(msg)
+    try:
+        res = await asyncio.to_thread(
+            client.torrents_add,
+            urls=[magnet_uri],
+            save_path=str(save_path),
+            is_paused=True,
+        )
+        if res != "Ok." and "already" not in res.lower():
+            msg = f"Torrent add failed: {res}"
+            raise RuntimeError(msg)
+    except Exception as e:
+        # Some versions of the API might raise an exception if already added
+        if "already" not in str(e).lower():
+            raise
 
     # Resume the torrent
     await asyncio.to_thread(client.torrents_resume, hashes=torrent_hash)
@@ -98,7 +101,7 @@ async def add_and_wait_for_completion(
         await asyncio.sleep(2)
 
     # Get files list
-    files = await asyncio.to_thread(client.torrents_files, hashes=torrent_hash)
+    files = await asyncio.to_thread(client.torrents_files, torrent_hash=torrent_hash)
     file_paths = [str(f["name"]) for f in files]
 
     # Calculate data_root (common directory or empty if single file in root)

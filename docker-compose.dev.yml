@@ -1,0 +1,138 @@
+# Development environment with live reload and nginx proxy
+# Usage: ./dev.sh start
+# This will mount source code, run development servers, and proxy through nginx
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: moviedb-nginx
+    volumes:
+      - ./nginx/nginx.conf.dev:/etc/nginx/nginx.conf:ro
+    ports:
+      - "6001:80"
+    depends_on:
+      - app
+      - frontend
+    networks:
+      - moviedb-network
+
+  app:
+    build:
+      context: .
+      args:
+        BUILD_TYPE: development
+    container_name: moviedb-app-dev
+    volumes:
+      - ./moviedb_manager:/app/moviedb_manager
+      - ./.git:/app/.git
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./README.md:/app/README.md
+      - ./.env:/app/.env
+      # Preserve build artifacts
+      - /app/moviedb_manager/__pycache__
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=development
+      - MOVIEDB_DATABASE__HOST=db
+      - MOVIEDB_DATABASE__PORT=5432
+      - MOVIEDB_DATABASE__USER=moviedb
+      - MOVIEDB_DATABASE__PASSWORD=moviedb
+      - MOVIEDB_DATABASE__NAME=moviedb
+      - MOVIEDB_REDIS__URL=redis://redis:6379/0
+      - MOVIEDB_QBITTORRENT__HOST=qbittorrent
+      - MOVIEDB_QBITTORRENT__PORT=8080
+      - MOVIEDB_QBITTORRENT__USER=admin
+      - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
+    command: ["uvicorn", "moviedb_manager.app:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "/app/moviedb_manager"]
+    ports:
+      - "6003:5000" # Direct access for debugging
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_started
+    networks:
+      - moviedb-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: moviedb-frontend-dev
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume to preserve node_modules installed in image
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=/api
+    networks:
+      - moviedb-network
+
+  db:
+    image: postgres:17-alpine
+    container_name: moviedb-db-dev
+    environment:
+      - POSTGRES_USER=moviedb
+      - POSTGRES_PASSWORD=moviedb
+      - POSTGRES_DB=moviedb
+    ports:
+      - "5435:5432" # Different port from host default to avoid conflicts
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moviedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moviedb-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: moviedb-redis-dev
+    networks:
+      - moviedb-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qbittorrent:
+    image: qbittorrentofficial/qbittorrent-nox:latest
+    container_name: moviedb-qbittorrent-dev
+    environment:
+      - TZ=Etc/UTC
+      - QBT_WEBUI_PORT=8080
+      - QBT_TORRENTING_PORT=6881
+      - QBT_LEGAL_NOTICE=accept
+    volumes:
+      - ./downloads_dev:/downloads/downloads
+    ports:
+      - "8082:8080"
+      - "6883:6881"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        CONF_DIR="/root/.config/qBittorrent"
+        CONF="$$CONF_DIR/qBittorrent.conf"
+        mkdir -p "$$CONF_DIR"
+        if [ ! -f "$$CONF" ]; then
+          echo '[Preferences]' > "$$CONF"
+        fi
+        sed -i '/WebUI\\Password_PBKDF2/d' "$$CONF"
+        sed -i '/\[Preferences\]/a WebUI\\Password_PBKDF2=\"@ByteArray(ARQ77eY1NUZaQsuDHbIMCA==:0WMRkYTUWVT9wVvdDtHAjU9b3b7uB8NR1Gur2hmQCvCDpm39Q+PsJRJPaCU51dEiz+dTzh8qbPsL8WkFljQYFQ==)\"' "$$CONF"
+        exec qbittorrent-nox
+    networks:
+      - moviedb-network
+
+networks:
+  moviedb-network:
+    driver: bridge
+
+volumes:
+  pgdata_dev:

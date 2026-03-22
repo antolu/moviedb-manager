@@ -39,7 +39,7 @@ jobs:
           fi
           SAFE_REF_NAME=$(echo "${REF_NAME}" | sed 's/\//-/g')
           IMAGE_TAR=image-${SAFE_REF_NAME}.tar
-          docker buildx build --platform linux/amd64 --output type=oci,dest=${IMAGE_TAR} .
+          docker buildx build --platform linux/amd64 --build-arg BUILD_TYPE=production --target production --output type=oci,dest=${IMAGE_TAR} .
           ls -lh ${IMAGE_TAR}
           echo "safe_ref_name=${SAFE_REF_NAME}" >> $GITHUB_OUTPUT
 

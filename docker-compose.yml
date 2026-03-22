@@ -40,8 +40,7 @@ services:
       - QBT_TORRENTING_PORT=6881
       - QBT_LEGAL_NOTICE=accept
     volumes:
-      - ./qbt_config:/root/.config
-      - ./downloads:/downloads
+      - ./downloads:/downloads/downloads
     ports:
       - "8080:8080"
       - "6881:6881"
@@ -97,6 +96,7 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - ./downloads:/data
+      - ./.env:/app/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/status"]
       interval: 30s
