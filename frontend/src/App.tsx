@@ -111,6 +111,25 @@ function App() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
+  const formatStatus = (state: string) => {
+    const mapping: Record<string, string> = {
+      metaDL: "Fetching Metadata",
+      stalledDL: "Stalled",
+      downloading: "Downloading",
+      uploading: "Seeding",
+      stalledUP: "Seeding (Stalled)",
+      queuedDL: "Queued",
+      queuedUP: "Queued",
+      pausedDL: "Paused",
+      pausedUP: "Paused",
+      checkingDL: "Checking",
+      checkingUP: "Checking",
+      error: "Error",
+      unknown: "Unknown",
+    };
+    return mapping[state] || state;
+  };
+
   const formatEta = (seconds: number) => {
     if (seconds <= 0 || seconds > 864000) return "∞";
     const h = Math.floor(seconds / 3600);
@@ -321,7 +340,7 @@ function App() {
                         </div>
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-neutral-400 font-semibold">
-                            {torrent.state}
+                            {formatStatus(torrent.state)}
                           </span>
                           <span className="text-white font-black text-lg">
                             {(torrent.progress * 100).toFixed(1)}%

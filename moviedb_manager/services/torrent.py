@@ -79,6 +79,8 @@ async def add_and_wait_for_completion(
                 "eta": str(info.get("eta", 0)),
                 "state": state,
                 "name": str(info.get("name", "Unknown")),
+                "dlspeed": str(info.get("dlspeed", 0)),
+                "upspeed": str(info.get("upspeed", 0)),
             }
             await typing.cast(
                 typing.Awaitable[int],
