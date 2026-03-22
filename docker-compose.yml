@@ -40,12 +40,30 @@ services:
       - QBT_TORRENTING_PORT=6881
       - QBT_LEGAL_NOTICE=accept
     volumes:
-      - ./qbt_config:/config
+      - ./qbt_config:/root/.config
       - ./downloads:/downloads
     ports:
       - "8080:8080"
       - "6881:6881"
       - "6881:6881/udp"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Path where the official image expects config if HOME=/root
+        CONF_DIR="/root/.config/qBittorrent"
+        CONF="$$CONF_DIR/qBittorrent.conf"
+
+        mkdir -p "$$CONF_DIR"
+
+        if [ ! -f "$$CONF" ]; then
+          echo '[Preferences]' > "$$CONF"
+        fi
+
+        # Remove existing password line and inject the desired one
+        sed -i '/WebUI\\Password_PBKDF2/d' "$$CONF"
+        sed -i '/\[Preferences\]/a WebUI\\Password_PBKDF2=\"@ByteArray(ARQ77eY1NUZaQsuDHbIMCA==:0WMRkYTUWVT9wVvdDtHAjU9b3b7uB8NR1Gur2hmQCvCDpm39Q+PsJRJPaCU51dEiz+dTzh8qbPsL8WkFljQYFQ==)\"' "$$CONF"
+
+        exec qbittorrent-nox
     restart: unless-stopped
     networks:
       - moviedb-network
