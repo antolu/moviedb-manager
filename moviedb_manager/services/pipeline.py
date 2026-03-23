@@ -128,4 +128,16 @@ async def process_torrent_pipeline(  # noqa: PLR0913
         torrent_db.status = DownloadStatus.FAILED
         torrent_db.error = str(e)
         await db.commit()
+
+        # Update Redis so the frontend is notified of the error
+        await redis_client.hset(
+            f"torrent:{torrent_db.id}",
+            mapping={
+                "state": "error",
+                "message": str(e),
+                "progress": str(torrent_db.progress),
+            },
+        )
+        # Set expiry so it doesn't stay forever but long enough for user to see
+        await redis_client.expire(f"torrent:{torrent_db.id}", 3600)
         raise

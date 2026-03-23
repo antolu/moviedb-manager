@@ -139,17 +139,23 @@ async def run_pipeline_task(magnet_uri: str, media_type: str) -> None:
     redis_client = redis.from_url(settings.redis.url, decode_responses=True)
 
     async with AsyncSessionLocal() as db_session:
-        await process_torrent_pipeline(
-            magnet_uri=magnet_uri,
-            media_type=typing.cast(MediaType, media_type),
-            qbt_client=qbt_client,
-            movie_db=movie_db,
-            tv_db=tv_db,
-            settings=settings,
-            db=db_session,
-            redis_client=redis_client,
-        )
-    await redis_client.close()
+        try:
+            await process_torrent_pipeline(
+                magnet_uri=magnet_uri,
+                media_type=typing.cast(MediaType, media_type),
+                qbt_client=qbt_client,
+                movie_db=movie_db,
+                tv_db=tv_db,
+                settings=settings,
+                db=db_session,
+                redis_client=redis_client,
+            )
+        except Exception as e:
+            # We don't want the background task to crash the whole app or leave resources open
+            # process_torrent_pipeline already logs to DB and Redis
+            print(f"Error in background pipeline task: {e}")
+        finally:
+            await redis_client.close()
 
 
 @app.post("/api/torrents")

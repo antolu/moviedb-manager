@@ -12,6 +12,7 @@ export interface Torrent {
   eta: number;
   upspeed: number;
   dlspeed: number;
+  message?: string;
 }
 
 export interface HistoryItem {

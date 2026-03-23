@@ -332,20 +332,46 @@ function App() {
                       </div>
 
                       <div className="space-y-4">
-                        <div className="w-full bg-black/40 h-3 rounded-full overflow-hidden border border-white/5">
+                        <div
+                          className={`w-full h-3 rounded-full overflow-hidden border ${
+                            torrent.state === "error"
+                              ? "bg-red-950/20 border-red-500/20"
+                              : "bg-black/40 border-white/5"
+                          }`}
+                        >
                           <div
-                            className="bg-gradient-to-r from-blue-600 to-purple-500 h-full rounded-full shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all duration-1000 ease-out"
+                            className={`${
+                              torrent.state === "error"
+                                ? "bg-red-500"
+                                : "bg-gradient-to-r from-blue-600 to-purple-500"
+                            } h-full rounded-full transition-all duration-1000 ease-out`}
                             style={{ width: `${torrent.progress * 100}%` }}
                           />
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-neutral-400 font-semibold">
+                          <span
+                            className={`font-semibold ${
+                              torrent.state === "error"
+                                ? "text-red-400"
+                                : "text-neutral-400"
+                            }`}
+                          >
                             {formatStatus(torrent.state)}
                           </span>
                           <span className="text-white font-black text-lg">
                             {(torrent.progress * 100).toFixed(1)}%
                           </span>
                         </div>
+
+                        {torrent.message && (
+                          <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2">
+                            <AlertCircle
+                              size={14}
+                              className="mt-0.5 shrink-0"
+                            />
+                            <p className="line-clamp-2">{torrent.message}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
