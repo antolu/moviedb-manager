@@ -423,7 +423,10 @@ function App() {
                             <span className="truncate">{item.filename}</span>
                           </div>
                         </td>
-                        <td className="px-8 py-6 text-sm text-neutral-400 font-mono text-right max-w-xs truncate">
+                        <td
+                          className="px-8 py-6 text-sm text-neutral-400 font-mono text-right max-w-sm truncate"
+                          title={item.final_path}
+                        >
                           {item.final_path}
                         </td>
                         <td className="px-8 py-6 text-sm text-neutral-500 text-right">
