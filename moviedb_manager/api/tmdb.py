@@ -11,4 +11,6 @@ class TmdbMovieAdapter:
 
     def search(self, name: str) -> list[tmdbv3api.objs.movie.Movie]:
         results = self._movie.search(name)
-        return results if isinstance(results, list) else []
+        if isinstance(results, list):
+            return results
+        return getattr(results, "results", [])

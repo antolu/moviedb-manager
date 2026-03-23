@@ -44,7 +44,7 @@ async def test_resolve_movie_title_no_year_match(
 async def test_resolve_movie_title_no_results(movie_db_stub: StubMovieDbClient) -> None:
     movie_db_stub.results = []
     parsed = ParsedFilename(name="Obscure Film", year="2020")
-    assert await resolve_movie_title(parsed, movie_db_stub) == "Obscure Film"
+    assert await resolve_movie_title(parsed, movie_db_stub) == "Obscure Film (2020)"
 
 
 @pytest.mark.asyncio

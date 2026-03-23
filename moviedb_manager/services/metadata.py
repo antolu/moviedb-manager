@@ -14,7 +14,8 @@ async def resolve_movie_title(
 ) -> str:
     results = await asyncio.to_thread(client.search, parsed.name)
     if not results:
-        return parsed.name
+        year_suffix = f" ({parsed.year})" if parsed.year else ""
+        return f"{parsed.name}{year_suffix}"
 
     metadata = None
     if parsed.year:
