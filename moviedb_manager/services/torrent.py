@@ -77,7 +77,7 @@ async def add_and_wait_for_completion(
 
         # Update Redis status if possible
         if redis_client and torrent_id:
-            status_data = {
+            status_data: dict[str | bytes, bytes | float | int | str] = {
                 "progress": str(progress),
                 "eta": str(info.get("eta", 0)),
                 "state": state,
