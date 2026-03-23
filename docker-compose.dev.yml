@@ -82,7 +82,7 @@ services:
     ports:
       - "5435:5432" # Different port from host default to avoid conflicts
     volumes:
-      - pgdata_dev:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U moviedb"]
       interval: 10s
@@ -111,7 +111,7 @@ services:
       - QBT_TORRENTING_PORT=6881
       - QBT_LEGAL_NOTICE=accept
     volumes:
-      - ./downloads_dev:/downloads/downloads
+      - ./downloads:/downloads/downloads
     ports:
       - "8082:8080"
       - "6883:6881"
@@ -130,9 +130,7 @@ services:
     networks:
       - moviedb-network
 
+
 networks:
   moviedb-network:
     driver: bridge
-
-volumes:
-  pgdata_dev:
