@@ -25,6 +25,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy migration files
+COPY alembic/ /app/alembic/
+COPY alembic.ini /app/alembic.ini
+
 # Create non-root user
 RUN groupadd -r moviedb && useradd -r -g moviedb moviedb
 
@@ -64,7 +68,7 @@ CMD ["uvicorn", "moviedb_manager.app:app", "--host", "0.0.0.0", "--port", "5000"
 FROM base AS production
 
 # Copy built frontend assets
-COPY --from=frontend-builder /build/frontend/dist ./moviedb_manager/static
+COPY --from=frontend-builder /build/dist ./moviedb_manager/static
 
 # Copy application code
 COPY moviedb_manager/ ./moviedb_manager/

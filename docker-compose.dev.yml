@@ -28,6 +28,8 @@ services:
       - ./pyproject.toml:/app/pyproject.toml
       - ./README.md:/app/README.md
       - ./.env:/app/.env
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
       # Preserve build artifacts
       - /app/moviedb_manager/__pycache__
     env_file:

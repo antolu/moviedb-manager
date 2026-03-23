@@ -41,6 +41,8 @@ services:
     volumes:
       - ./moviedb_manager:/app/moviedb_manager
       - ./tests:/app/tests
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     depends_on:
       - db
       - redis
