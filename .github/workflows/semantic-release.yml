@@ -2,8 +2,8 @@ name: Semantic Release
 
 on:
   push:
-    branches:
-      - master
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       dry_run:
