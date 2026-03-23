@@ -6,7 +6,7 @@ import contextlib
 import json
 import os
 import typing
-from typing import Annotated
+from typing import Annotated, Any
 
 import fastapi
 import qbittorrentapi
@@ -229,11 +229,25 @@ async def stream_torrents(request: fastapi.Request) -> EventSourceResponse:
 @app.get("/api/history", response_model=None)
 async def get_history(
     db: Annotated[AsyncSession, fastapi.Depends(get_db)],
-) -> list[DownloadedFile]:
+) -> list[dict[str, Any]]:
     """Get history of completed downloads."""
-    query = select(DownloadedFile).order_by(DownloadedFile.moved_at.desc()).limit(50)
+    query = (
+        select(DownloadedFile, TorrentDownload.media_type)
+        .join(TorrentDownload)
+        .order_by(DownloadedFile.moved_at.desc())
+        .limit(50)
+    )
     result = await db.execute(query)
-    return list(result.scalars().all())
+    return [
+        {
+            "id": row.DownloadedFile.id,
+            "filename": row.DownloadedFile.filename,
+            "final_path": row.DownloadedFile.final_path,
+            "moved_at": row.DownloadedFile.moved_at,
+            "media_type": row.media_type,
+        }
+        for row in result.all()
+    ]
 
 
 # Serve Frontend

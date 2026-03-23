@@ -228,13 +228,13 @@ function App() {
                     <button
                       key={type}
                       onClick={() => setMediaType(type)}
-                      className={`flex-1 py-4 rounded-2xl border transition-all font-semibold capitalize ${
+                      className={`flex-1 py-4 rounded-2xl border transition-all font-semibold ${
                         mediaType === type
                           ? "bg-white/10 border-white/20 text-white"
                           : "bg-transparent border-white/5 text-neutral-500 hover:border-white/10"
                       }`}
                     >
-                      {type}
+                      {type === "movie" ? "Movie" : "TV Series"}
                     </button>
                   ))}
                 </div>
@@ -405,6 +405,9 @@ function App() {
                         Filename
                       </th>
                       <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-neutral-500 text-right">
+                        Type
+                      </th>
+                      <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-neutral-500 text-right">
                         Destination
                       </th>
                       <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-neutral-500 text-right">
@@ -423,6 +426,9 @@ function App() {
                             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" />
                             <span className="truncate">{item.filename}</span>
                           </div>
+                        </td>
+                        <td className="px-8 py-6 text-sm text-neutral-400 font-medium text-right whitespace-nowrap">
+                          {item.media_type === "tv" ? "TV Series" : "Movie"}
                         </td>
                         <td
                           className="px-8 py-6 text-sm text-neutral-400 font-mono text-right max-w-sm truncate"

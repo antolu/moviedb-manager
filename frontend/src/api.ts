@@ -20,6 +20,7 @@ export interface HistoryItem {
   filename: string;
   final_path: string;
   moved_at: string;
+  media_type: string;
 }
 
 export interface StatusResponse {

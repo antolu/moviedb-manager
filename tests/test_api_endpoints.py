@@ -53,9 +53,18 @@ async def test_get_history_endpoint(
 ) -> None:
     app.state.redis = mock_redis
     mock_file = unittest.mock.MagicMock()
+    mock_file.id = 1
+    mock_file.filename = "test.mp4"
+    mock_file.final_path = "/data/test.mp4"
+    mock_file.moved_at = "2023-01-01T00:00:00"
+
+    mock_row = unittest.mock.MagicMock()
+    mock_row.DownloadedFile = mock_file
+    mock_row.media_type = "movie"
+
     mock_execute_result = unittest.mock.MagicMock()
     override_db.execute.return_value = mock_execute_result
-    mock_execute_result.scalars.return_value.all.return_value = [mock_file]
+    mock_execute_result.all.return_value = [mock_row]
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
