@@ -92,7 +92,9 @@ async def test_process_tv_pipeline(  # noqa: PLR0913,PLR0917
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Setup stubs
-    tv_db_stub.search_results = [{"id": 1, "name": "The Mandalorian"}]
+    tv_db_stub.search_results = [
+        {"id": "series-1", "tvdb_id": "1", "name": "The Mandalorian"}
+    ]
     tv_db_stub.series_name = "The Mandalorian"
     tv_db_stub.episode_name = "The Jedi"
 
@@ -275,7 +277,7 @@ async def test_pipeline_multi_file_tv_torrent(
     ]
 
     # Stubs
-    tv_db_stub.search_results = [{"id": 1, "name": "Show"}]
+    tv_db_stub.search_results = [{"id": "series-1", "tvdb_id": "1", "name": "Show"}]
     tv_db_stub.series_name = "Show"
     tv_db_stub.episode_name = "Pilot"
 

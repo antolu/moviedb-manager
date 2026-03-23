@@ -42,7 +42,7 @@ async def resolve_tv_episode_title(
     if not results:
         return parsed.name, "Unknown Show"
 
-    series_id = results[0]["id"]
+    series_id = int(results[0]["tvdb_id"])
     season = parsed.season or 1
     episode = parsed.episode or 1
 

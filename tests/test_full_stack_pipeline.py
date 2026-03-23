@@ -188,7 +188,9 @@ async def test_full_tv_processing_pipeline(
         mock_session_factory.return_value.__aenter__.return_value = mock_db
 
         mock_tv_db = mock_tv_adapter_cls.return_value
-        mock_tv_db.search_series.return_value = [{"id": 1, "name": "The Mandalorian"}]
+        mock_tv_db.search_series.return_value = [
+            {"id": "series-1", "tvdb_id": "1", "name": "The Mandalorian"}
+        ]
         mock_tv_db.get_series_name.return_value = "The Mandalorian"
         mock_tv_db.get_episode_name.return_value = "The Jedi"
 

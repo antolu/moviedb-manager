@@ -86,7 +86,9 @@ async def test_resolve_movie_title_strips_colon(
 
 @pytest.mark.asyncio
 async def test_resolve_tv_episode_title(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [{"id": 1, "name": "The Mandalorian"}]
+    tv_db_stub.search_results = [
+        {"id": "series-1", "tvdb_id": "1", "name": "The Mandalorian"}
+    ]
     tv_db_stub.series_name = "The Mandalorian"
     tv_db_stub.episode_name = "The Heiress"
 
@@ -111,7 +113,9 @@ async def test_resolve_tv_episode_title_no_search_results(
 
 @pytest.mark.asyncio
 async def test_resolve_tv_episode_title_no_episodes(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [{"id": 1, "name": "Some Show"}]
+    tv_db_stub.search_results = [
+        {"id": "series-1", "tvdb_id": "1", "name": "Some Show"}
+    ]
     tv_db_stub.series_name = "Some Show"
     tv_db_stub.episode_name = "Unknown Episode"
 
@@ -125,7 +129,7 @@ async def test_resolve_tv_episode_title_no_episodes(tv_db_stub: StubTvDbClient) 
 async def test_resolve_tv_episode_title_defaults_season_episode(
     tv_db_stub: StubTvDbClient,
 ) -> None:
-    tv_db_stub.search_results = [{"id": 1, "name": "Show"}]
+    tv_db_stub.search_results = [{"id": "series-1", "tvdb_id": "1", "name": "Show"}]
     tv_db_stub.series_name = "Show"
     tv_db_stub.episode_name = "Pilot"
 
@@ -139,7 +143,9 @@ async def test_resolve_tv_episode_title_defaults_season_episode(
 async def test_resolve_tv_episode_title_strips_colon(
     tv_db_stub: StubTvDbClient,
 ) -> None:
-    tv_db_stub.search_results = [{"id": 1, "name": "Show: Drama"}]
+    tv_db_stub.search_results = [
+        {"id": "series-1", "tvdb_id": "1", "name": "Show: Drama"}
+    ]
     tv_db_stub.series_name = "Show: Drama"
     tv_db_stub.episode_name = "Pilot: Part 1"
 
@@ -151,7 +157,9 @@ async def test_resolve_tv_episode_title_strips_colon(
 
 @pytest.mark.asyncio
 async def test_resolve_tv_episode_title_utf8(tv_db_stub: StubTvDbClient) -> None:
-    tv_db_stub.search_results = [{"id": 1, "name": "Über Show"}]
+    tv_db_stub.search_results = [
+        {"id": "series-1", "tvdb_id": "1", "name": "Über Show"}
+    ]
     tv_db_stub.series_name = "Über Show"
     tv_db_stub.episode_name = "Spécial"
 
