@@ -17,7 +17,7 @@ dependencies = [
 name = "moviedb-manager"
 dynamic = ["version", "readme"]
 description = "A repository for managing movie downloads with automatic file renaming."
-license = { text = "Other/Proprietary License" }
+license = { file = "LICENSE.md" }
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: End Users/Desktop",
