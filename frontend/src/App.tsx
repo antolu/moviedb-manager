@@ -124,6 +124,7 @@ function App() {
       pausedUP: "Paused",
       checkingDL: "Checking",
       checkingUP: "Checking",
+      processing: "Organizing",
       error: "Error",
       unknown: "Unknown",
     };

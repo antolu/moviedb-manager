@@ -56,6 +56,19 @@ async def process_torrent_pipeline(  # noqa: PLR0913
             redis_client=redis_client,
         )
 
+        # Update Redis to show it's now processing (download finished)
+        await typing.cast(
+            typing.Awaitable[int],
+            redis_client.hset(
+                f"torrent:{torrent_db.id}",
+                mapping={
+                    "state": "processing",
+                    "progress": "1.0",
+                    "eta": "0",
+                },
+            ),
+        )
+
         # 2. Identify files
         media_files = []
         local_torrent_base = pathlib.Path(dirs.local) / dirs.download

@@ -211,8 +211,8 @@ async def event_generator(
                     decoded["id"] = key.split(":")[1]
                     updates.append(decoded)
 
-            if updates:
-                yield {"data": json.dumps(updates)}
+            # Always yield current state, even if empty, so the frontend can clear its list
+            yield {"data": json.dumps(updates)}
 
             await asyncio.sleep(2)
     except asyncio.CancelledError:
