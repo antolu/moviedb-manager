@@ -14,14 +14,9 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: '25'
+          node-version: '22'
 
-      - name: Install dependencies
+      - name: Run commitlint
         run: |
-          npm install
-
-      - name: Run commitlint on PR title
-        run: |
-          # Verify PR title follows conventional commits
           echo "${{ github.event.pull_request.title }}" > /tmp/pr_title.txt
-          npx --no-install commitlint --edit /tmp/pr_title.txt
+          npx -y -p @commitlint/cli@^17.0.0 commitlint --config commitlint.config.cjs --edit /tmp/pr_title.txt

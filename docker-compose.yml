@@ -1,0 +1,114 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: moviedb-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=moviedb
+      - POSTGRES_PASSWORD=moviedb
+      - POSTGRES_DB=moviedb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moviedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moviedb-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: moviedb-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - moviedb-network
+
+  qbittorrent:
+    image: qbittorrentofficial/qbittorrent-nox:latest
+    container_name: moviedb-qbittorrent
+    environment:
+      - TZ=Etc/UTC
+      - QBT_WEBUI_PORT=8080
+      - QBT_TORRENTING_PORT=6881
+      - QBT_LEGAL_NOTICE=accept
+    volumes:
+      - ./downloads:/downloads/downloads
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Path where the official image expects config if HOME=/root
+        CONF_DIR="/root/.config/qBittorrent"
+        CONF="$$CONF_DIR/qBittorrent.conf"
+
+        mkdir -p "$$CONF_DIR"
+
+        if [ ! -f "$$CONF" ]; then
+          echo '[Preferences]' > "$$CONF"
+        fi
+
+        # Remove existing password line and inject the desired one
+        sed -i '/WebUI\\Password_PBKDF2/d' "$$CONF"
+        sed -i '/\[Preferences\]/a WebUI\\Password_PBKDF2=\"@ByteArray(ARQ77eY1NUZaQsuDHbIMCA==:0WMRkYTUWVT9wVvdDtHAjU9b3b7uB8NR1Gur2hmQCvCDpm39Q+PsJRJPaCU51dEiz+dTzh8qbPsL8WkFljQYFQ==)\"' "$$CONF"
+
+        exec qbittorrent-nox
+    restart: unless-stopped
+    networks:
+      - moviedb-network
+
+  app:
+    build: .
+    container_name: moviedb-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qbittorrent:
+        condition: service_started
+    ports:
+      - "6001:5000"
+    env_file:
+      - .env
+    environment:
+      - MOVIEDB_DATABASE__HOST=db
+      - MOVIEDB_DATABASE__PORT=5432
+      - MOVIEDB_DATABASE__USER=moviedb
+      - MOVIEDB_DATABASE__PASSWORD=moviedb
+      - MOVIEDB_DATABASE__NAME=moviedb
+      - MOVIEDB_REDIS__URL=redis://redis:6379/0
+      - MOVIEDB_QBITTORRENT__HOST=qbittorrent
+      - MOVIEDB_QBITTORRENT__PORT=8080
+      - MOVIEDB_QBITTORRENT__USER=admin
+      - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./downloads:/data/downloads
+      - ./data/movies:/data/movies
+      - ./data/tv:/data/tv
+      - ./.env:/app/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - moviedb-network
+
+
+networks:
+  moviedb-network:
+    driver: bridge

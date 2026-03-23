@@ -13,6 +13,7 @@ class TorrentInfo(BaseModel):
     magnet_uri: str
     hash: str
     data_root: str
+    files: list[str]
 
 
 class EpisodeInfo(BaseModel):

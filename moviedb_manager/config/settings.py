@@ -16,9 +16,20 @@ class QBittorrentSettings(pydantic.BaseModel):
     password: str = "adminadmin"
 
 
-class CelerySettings(pydantic.BaseModel):
-    celery_url: str = "redis://localhost:6379/0"
-    celery_result: str = "redis://localhost:6379/0"
+class RedisSettings(pydantic.BaseModel):
+    url: str = "redis://localhost:6379/0"
+
+
+class DatabaseSettings(pydantic.BaseModel):
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "moviedb"
+    password: str = "moviedb"
+    name: str = "moviedb"
+
+    @property
+    def url(self) -> str:
+        return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
 
 
 class DirectorySettings(pydantic.BaseModel):
@@ -39,7 +50,8 @@ class Settings(pydantic_settings.BaseSettings):
     qbittorrent: QBittorrentSettings = pydantic.Field(
         default_factory=QBittorrentSettings
     )
-    celery: CelerySettings = pydantic.Field(default_factory=CelerySettings)
+    redis: RedisSettings = pydantic.Field(default_factory=RedisSettings)
+    database: DatabaseSettings = pydantic.Field(default_factory=DatabaseSettings)
     directories: DirectorySettings = pydantic.Field(default_factory=DirectorySettings)
     misc: MiscSettings = pydantic.Field(default_factory=MiscSettings)
 

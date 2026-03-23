@@ -8,31 +8,47 @@ import pytest
 from moviedb_manager.config.settings import Settings
 from moviedb_manager.models.media import TorrentInfo
 from moviedb_manager.services.pipeline import process_torrent_pipeline
-
-from .conftest import (
-    StubMovieDbClient,
-    StubMovieResult,
-    StubTvDbClient,
-)
+from tests.conftest import StubMovieDbClient, StubTvDbClient
 
 
-def test_process_movie_pipeline(
+@pytest.mark.asyncio
+async def test_process_movie_pipeline(  # noqa: PLR0913,PLR0917
     media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
     settings: Settings,
+    mock_db: unittest.mock.AsyncMock,
+    mock_redis: unittest.mock.AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Setup stubs
     movie_db_stub.results = [
-        StubMovieResult(original_title="Interstellar", release_date="2014-11-07")
+        unittest.mock.MagicMock(
+            original_title="Interstellar", release_date="2014-11-07"
+        )
     ]
 
     # Mock qBittorrent client
     qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.side_effect = [
-        [{"hash": "h1", "name": "Interstellar.2014.1080p", "magnet_uri": "mag1"}],
-        [{"state": "completed", "hash": "h1"}],
+        [
+            {
+                "hash": "h1",
+                "name": "Interstellar.2014.1080p",
+                "magnet_uri": "magnet:?xt=urn:btih:h1",
+                "progress": 1.0,
+                "state": "completed",
+            }
+        ],
+        [
+            {
+                "state": "completed",
+                "hash": "h1",
+                "progress": 1.0,
+                "name": "Interstellar.2014.1080p",
+            }
+        ],
     ]
     qbt_mock.torrents_files.return_value = [
         {"name": "Interstellar.2014.1080p/movie.mkv"}
@@ -45,31 +61,40 @@ def test_process_movie_pipeline(
     mkv_file.touch()
 
     with unittest.mock.patch(
-        "moviedb_manager.services.torrent.time.sleep", return_value=None
+        "moviedb_manager.services.torrent.asyncio.sleep", return_value=None
     ):
-        process_torrent_pipeline(
-            magnet_uri="mag1",
+        await process_torrent_pipeline(
+            magnet_uri="magnet:?xt=urn:btih:h1",
             media_type="movie",
             qbt_client=qbt_mock,
             movie_db=movie_db_stub,
             tv_db=tv_db_stub,
             settings=settings,
+            db=mock_db,
+            redis_client=mock_redis,
         )
 
     # Verify
     movie_lib = media_root / "movies"
     assert (movie_lib / "Interstellar (2014).mkv").exists()
     assert not download_path.exists()
+    assert mock_db.commit.call_count >= 2
 
 
-def test_process_tv_pipeline(
+@pytest.mark.asyncio
+async def test_process_tv_pipeline(  # noqa: PLR0913,PLR0917
     media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
     settings: Settings,
+    mock_db: unittest.mock.AsyncMock,
+    mock_redis: unittest.mock.AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Setup stubs
-    tv_db_stub.search_results = [{"id": 1, "name": "The Mandalorian"}]
+    tv_db_stub.search_results = [
+        {"id": "series-1", "tvdb_id": "1", "name": "The Mandalorian"}
+    ]
     tv_db_stub.series_name = "The Mandalorian"
     tv_db_stub.episode_name = "The Jedi"
 
@@ -77,45 +102,79 @@ def test_process_tv_pipeline(
     qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.side_effect = [
-        [{"hash": "h2", "name": "Mandalorian.S02E05", "magnet_uri": "mag2"}],
-        [{"state": "completed", "hash": "h2"}],
+        [
+            {
+                "hash": "h2",
+                "name": "Mandalorian.S02E05",
+                "magnet_uri": "magnet:?xt=urn:btih:h2",
+                "progress": 1.0,
+                "state": "completed",
+            }
+        ],
+        [
+            {
+                "state": "completed",
+                "hash": "h2",
+                "progress": 1.0,
+                "name": "Mandalorian.S02E05",
+            }
+        ],
     ]
-    qbt_mock.torrents_files.return_value = [{"name": "Mandalorian.S02E05/ep.mp4"}]
+    qbt_mock.torrents_files.return_value = [
+        {"name": "Mandalorian.S02E05/Mandalorian.S02E05.mp4"}
+    ]
 
     # Create the actual file
-    download_path = media_root / "downloads" / "Mandalorian.S02E05"
-    download_path.mkdir(parents=True, exist_ok=True)
-    mp4_file = download_path / "The.Mandalorian.S02E05.720p.mp4"
-    mp4_file.touch()
+    torrent_rel_dir = "Mandalorian.S02E05"
+    mkv_rel_path = f"{torrent_rel_dir}/Mandalorian.S02E05.mp4"
 
-    with unittest.mock.patch(
-        "moviedb_manager.services.torrent.time.sleep", return_value=None
-    ):
-        process_torrent_pipeline(
-            magnet_uri="mag2",
-            media_type="tv",
-            qbt_client=qbt_mock,
-            movie_db=movie_db_stub,
-            tv_db=tv_db_stub,
-            settings=settings,
-        )
+    full_torrent_dir = media_root / "downloads" / torrent_rel_dir
+    full_torrent_dir.mkdir(parents=True, exist_ok=True)
+    mp4_file = media_root / "downloads" / mkv_rel_path
+    mp4_file.touch()
+    tv_db_stub.series_name = "The Mandalorian"
+    tv_db_stub.episode_name = "The Jedi"
+
+    monkeypatch.setattr(
+        "moviedb_manager.services.torrent.asyncio.sleep", lambda *_: None
+    )
+
+    await process_torrent_pipeline(
+        magnet_uri="magnet:?xt=urn:btih:h2",
+        media_type="tv",
+        qbt_client=qbt_mock,
+        movie_db=movie_db_stub,
+        tv_db=tv_db_stub,
+        settings=settings,
+        db=mock_db,
+        redis_client=mock_redis,
+    )
 
     # Verify
     tv_lib = media_root / "tv" / "The Mandalorian" / "Season 2"
     assert (tv_lib / "The Mandalorian - S02E05 - The Jedi.mp4").exists()
-    assert not download_path.exists()
+    assert not full_torrent_dir.exists()
 
 
-def test_pipeline_no_media_files(
+@pytest.mark.asyncio
+async def test_pipeline_no_media_files(  # noqa: PLR0913,PLR0917
     media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
     settings: Settings,
+    mock_db: unittest.mock.AsyncMock,
+    mock_redis: unittest.mock.AsyncMock,
 ) -> None:
     qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.return_value = [
-        {"hash": "h3", "name": "Empty", "magnet_uri": "mag3", "state": "completed"}
+        {
+            "hash": "h3",
+            "name": "Empty",
+            "magnet_uri": "magnet:?xt=urn:btih:h3",
+            "state": "completed",
+            "progress": 1.0,
+        }
     ]
     qbt_mock.torrents_files.return_value = [{"name": "Empty/nothing.txt"}]
 
@@ -126,33 +185,45 @@ def test_pipeline_no_media_files(
 
     with (
         unittest.mock.patch(
-            "moviedb_manager.services.torrent.time.sleep", return_value=None
+            "moviedb_manager.services.torrent.asyncio.sleep", return_value=None
         ),
         pytest.raises(RuntimeError, match="No media files found"),
     ):
-        process_torrent_pipeline(
-            magnet_uri="mag3",
+        await process_torrent_pipeline(
+            magnet_uri="magnet:?xt=urn:btih:h3",
             media_type="movie",
             qbt_client=qbt_mock,
             movie_db=movie_db_stub,
             tv_db=tv_db_stub,
             settings=settings,
+            db=mock_db,
+            redis_client=mock_redis,
         )
 
 
-def test_pipeline_multiple_files(
+@pytest.mark.asyncio
+async def test_pipeline_multiple_files(  # noqa: PLR0913,PLR0917
     media_root: pathlib.Path,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
     settings: Settings,
+    mock_db: unittest.mock.AsyncMock,
+    mock_redis: unittest.mock.AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     movie_db_stub.results = [
-        StubMovieResult(original_title="Kill Bill", release_date="2003-10-10")
+        unittest.mock.MagicMock(original_title="Kill Bill", release_date="2003-10-10")
     ]
     qbt_mock = unittest.mock.MagicMock()
     qbt_mock.torrents_add.return_value = "Ok."
     qbt_mock.torrents_info.return_value = [
-        {"hash": "h4", "name": "Kill.Bill", "magnet_uri": "mag4", "state": "completed"}
+        {
+            "hash": "h4",
+            "name": "Kill.Bill",
+            "magnet_uri": "magnet:?xt=urn:btih:h4",
+            "state": "completed",
+            "progress": 1.0,
+        }
     ]
     qbt_mock.torrents_files.return_value = [{"name": "Kill.Bill/vol1.mkv"}]
 
@@ -161,30 +232,35 @@ def test_pipeline_multiple_files(
     (download_path / "vol1.mkv").touch()
     (download_path / "vol2.mkv").touch()
 
+    monkeypatch.setattr(
+        "moviedb_manager.services.torrent.asyncio.sleep", lambda *_: None
+    )
     with unittest.mock.patch(
-        "moviedb_manager.services.torrent.time.sleep", return_value=None
+        "moviedb_manager.services.torrent.asyncio.sleep", return_value=None
     ):
-        process_torrent_pipeline(
-            magnet_uri="mag4",
+        await process_torrent_pipeline(
+            magnet_uri="magnet:?xt=urn:btih:h4",
             media_type="movie",
             qbt_client=qbt_mock,
             movie_db=movie_db_stub,
             tv_db=tv_db_stub,
             settings=settings,
+            db=mock_db,
+            redis_client=mock_redis,
         )
 
     movie_lib = media_root / "movies"
     assert (movie_lib / "Kill Bill (2003).mkv").exists()
-    # If both files had the same name after parsing/resolving, they would overwrite each other
-    # unless naming.py or fileops.py handles duplicates.
-    # Current implementation might overwrite. Let's check how many files are in movie_lib.
     assert len(list(movie_lib.glob("*.mkv"))) >= 1
 
 
-def test_pipeline_multi_file_tv_torrent(
+@pytest.mark.asyncio
+async def test_pipeline_multi_file_tv_torrent(
     settings: Settings,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
+    mock_db: unittest.mock.AsyncMock,
+    mock_redis: unittest.mock.AsyncMock,
 ) -> None:
     # Torrent has two TV episodes
     local_base = pathlib.Path(settings.directories.local)
@@ -201,7 +277,7 @@ def test_pipeline_multi_file_tv_torrent(
     ]
 
     # Stubs
-    tv_db_stub.search_results = [{"id": 1, "name": "Show"}]
+    tv_db_stub.search_results = [{"id": "series-1", "tvdb_id": "1", "name": "Show"}]
     tv_db_stub.series_name = "Show"
     tv_db_stub.episode_name = "Pilot"
 
@@ -209,29 +285,36 @@ def test_pipeline_multi_file_tv_torrent(
         "moviedb_manager.services.pipeline.add_and_wait_for_completion"
     ) as mock_add:
         mock_add.return_value = TorrentInfo(
-            hash="h1", name="Show.Torrent", data_root="Show.Torrent", magnet_uri="h1"
+            hash="h1",
+            name="Show.Torrent",
+            data_root="Show.Torrent",
+            magnet_uri="magnet:?xt=urn:btih:h1",
+            files=["Show.Torrent/Show.S01E01.mkv", "Show.Torrent/Show.S01E02.mkv"],
         )
-        process_torrent_pipeline(
+        await process_torrent_pipeline(
             qbt_client=mock_qbt,
-            magnet_uri="h1",
+            magnet_uri="magnet:?xt=urn:btih:h1",
             media_type="tv",
             settings=settings,
             movie_db=movie_db_stub,
             tv_db=tv_db_stub,
+            db=mock_db,
+            redis_client=mock_redis,
         )
 
-    # Verify both moved - the stub returns the same episode_name for all calls,
-    # so the files land as S01E01 and S01E02 both named "Pilot"
     tv_lib = local_base / settings.directories.tv / "Show" / "Season 1"
     existing_files = [f.name for f in tv_lib.glob("*.mkv")]
     assert "Show - S01E01 - Pilot.mkv" in existing_files
     assert "Show - S01E02 - Pilot.mkv" in existing_files
 
 
-def test_pipeline_readonly_destination(
+@pytest.mark.asyncio
+async def test_pipeline_readonly_destination(
     settings: Settings,
     movie_db_stub: StubMovieDbClient,
     tv_db_stub: StubTvDbClient,
+    mock_db: unittest.mock.AsyncMock,
+    mock_redis: unittest.mock.AsyncMock,
 ) -> None:
     local_base = pathlib.Path(settings.directories.local)
     torrent_dir = local_base / settings.directories.download / "Test.Movie"
@@ -241,7 +324,7 @@ def test_pipeline_readonly_destination(
     mock_qbt = unittest.mock.MagicMock()
     mock_qbt.torrents_files.return_value = [{"name": "Test.Movie/Movie.2023.mkv"}]
     movie_db_stub.results = [
-        StubMovieResult(original_title="Movie", release_date="2023-01-01")
+        unittest.mock.MagicMock(original_title="Movie", release_date="2023-01-01")
     ]
 
     # Make destination read-only
@@ -254,15 +337,21 @@ def test_pipeline_readonly_destination(
     )
     with mock_add_patch as mock_add:
         mock_add.return_value = TorrentInfo(
-            hash="h1", name="Test.Movie", data_root="Test.Movie", magnet_uri="h1"
+            hash="h1",
+            name="Test.Movie",
+            data_root="Test.Movie",
+            magnet_uri="magnet:?xt=urn:btih:h1",
+            files=["Test.Movie/Movie.2023.mkv"],
         )
         with pytest.raises(PermissionError):
-            process_torrent_pipeline(
+            await process_torrent_pipeline(
                 qbt_client=mock_qbt,
-                magnet_uri="h1",
+                magnet_uri="magnet:?xt=urn:btih:h1",
                 media_type="movie",
                 settings=settings,
                 movie_db=movie_db_stub,
                 tv_db=tv_db_stub,
+                db=mock_db,
+                redis_client=mock_redis,
             )
     movies_dir.chmod(0o777)

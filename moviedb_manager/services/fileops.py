@@ -55,8 +55,7 @@ def rename_file(
     extension = file.absolute_path.suffix
     new_name = new_base_name + extension
     new_path = file.absolute_path.parent / new_name
-
-    file.absolute_path.rename(new_path)
+    shutil.move(str(file.absolute_path), str(new_path))
     file.filename = new_name
     file.absolute_path = new_path
     file.real_name = new_base_name
@@ -68,8 +67,7 @@ def move_file(
 ) -> None:
     dest_dir.mkdir(parents=True, exist_ok=True)
     new_path = dest_dir / file.filename
-
-    file.absolute_path.rename(new_path)
+    shutil.move(str(file.absolute_path), str(new_path))
     file.absolute_path = new_path
 
 

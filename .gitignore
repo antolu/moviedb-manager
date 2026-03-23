@@ -78,6 +78,10 @@ web_modules/
 # dotenv environment variable files
 .env
 .env.development.local
+.qbt_config/
+qbt_config/
+downloads/
+data/
 .env.test.local
 .env.production.local
 .env.local
@@ -323,3 +327,4 @@ thumb
 sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/python,node,react
+pgdata/

@@ -1,32 +1,89 @@
-FROM python:3.14-slim
+# syntax=docker/dockerfile:1.4
+ARG BUILD_TYPE=production
 
-# Set environment variables for production
+# --- Stage 1: Build the React frontend ---
+FROM node:22-alpine AS frontend-builder
+WORKDIR /build
+
+# Install dependencies
+COPY frontend/package*.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
+# Copy source and build
+COPY frontend/ ./
+RUN npm run build
+
+# --- Stage 2: Python Base ---
+FROM python:3.14-slim AS base
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV FLASK_ENV=production
 
-# Create non-root user for security
-RUN groupadd -r moviedb && useradd -r -g moviedb moviedb
-
-# Set work directory
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
+# Install common system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy application code and git metadata for version detection (required by setuptools-scm)
+# Copy migration files
+COPY alembic/ /app/alembic/
+COPY alembic.ini /app/alembic.ini
+
+# Create non-root user
+RUN groupadd -r moviedb && useradd -r -g moviedb moviedb
+
+WORKDIR /app
+
+# --- Stage 3: Development ---
+FROM base AS development
+# Install watchfiles for hot reloading
+RUN pip install --no-cache-dir watchfiles
+
+# Copy configuration files
+COPY pyproject.toml README.md ./
 COPY moviedb_manager/ ./moviedb_manager/
-COPY pyproject.toml .
-COPY README.md .
-COPY .git/ ./.git/
 
-# Install the application with all dependencies
-RUN pip install .
+# Install dependencies (including dev/test)
+# Mount .git for setuptools-scm to work during installation
+RUN --mount=type=bind,source=.git,target=/app/.git \
+    --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -e ".[dev,test]"
 
-# Create data directory for persistent config (if needed by app)
+# Copy and set up entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Switch to non-root user
+USER moviedb
+
+# Expose port
+EXPOSE 5000
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Default command for development (overridden in compose)
+CMD ["uvicorn", "moviedb_manager.app:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
+
+# --- Stage 4: Production ---
+FROM base AS production
+
+# Copy built frontend assets
+COPY --from=frontend-builder /build/dist ./moviedb_manager/static
+
+# Copy application code
+COPY moviedb_manager/ ./moviedb_manager/
+COPY pyproject.toml README.md ./
+
+# Install the package itself with git context for proper setuptools-scm versioning
+RUN --mount=type=bind,source=.git,target=/app/.git \
+    --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir .
+
+# Copy and set up entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# Create data directory
 RUN mkdir -p /app/data && chown moviedb:moviedb /app/data
 
 # Switch to non-root user
@@ -37,20 +94,12 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/mediamanager || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')" || exit 1
 
-# Environment variables for configuration (optional, defaults are provided in app)
-# MOVIEDB_APIKEYS__TMDB: TMDB API Key
-# MOVIEDB_APIKEYS__TVDB: TVDB API Key
-# MOVIEDB_QBITTORRENT__HOST: qBittorrent host
-# MOVIEDB_QBITTORRENT__PORT: qBittorrent port
-# MOVIEDB_QBITTORRENT__USER: qBittorrent user
-# MOVIEDB_QBITTORRENT__PASSWORD: qBittorrent password
-# MOVIEDB_DIRECTORIES__REMOTE: Remote download directory
-# MOVIEDB_DIRECTORIES__DOWNLOAD: Download subdirectory
-# MOVIEDB_DIRECTORIES__LOCAL: Local data directory
-# MOVIEDB_DIRECTORIES__MOVIE: Movie library subdirectory
-# MOVIEDB_DIRECTORIES__TV: TV library subdirectory
+ENTRYPOINT ["/docker-entrypoint.sh"]
 
-# Set the command to run the application
+# Command to run the application
 CMD ["python", "-m", "moviedb_manager.app"]
+
+# --- Final Stage ---
+FROM ${BUILD_TYPE} AS final
