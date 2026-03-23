@@ -95,7 +95,9 @@ services:
       - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./downloads:/data
+      - ./downloads:/data/downloads
+      - ./data/movies:/data/movies
+      - ./data/tv:/data/tv
       - ./.env:/app/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/status"]

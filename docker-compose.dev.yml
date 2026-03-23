@@ -32,6 +32,9 @@ services:
       - ./alembic.ini:/app/alembic.ini
       # Preserve build artifacts
       - /app/moviedb_manager/__pycache__
+      - ./downloads:/data/downloads
+      - ./data/movies:/data/movies
+      - ./data/tv:/data/tv
     env_file:
       - .env
     environment:
