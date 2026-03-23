@@ -110,6 +110,7 @@ async def process_torrent_pipeline(  # noqa: PLR0913
 
         # 5. Cleanup
         # Only cleanup if it was a directory (data_root is non-empty)
+        local_download_path = local_torrent_base
         if torrent_info.data_root:
             local_download_path = local_torrent_base / torrent_info.data_root
             cleanup_directory(local_download_path)
