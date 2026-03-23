@@ -90,7 +90,7 @@ async def add_and_wait_for_completion(
                 redis_client.hset(f"torrent:{torrent_id}", mapping=status_data),
             )
             await typing.cast(
-                typing.Awaitable[int],
+                typing.Awaitable[bool],
                 redis_client.expire(f"torrent:{torrent_id}", 3600),
             )
 

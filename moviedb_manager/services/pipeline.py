@@ -122,7 +122,9 @@ async def process_torrent_pipeline(  # noqa: PLR0913
         await db.commit()
 
         # Clean up Redis cache for this torrent
-        await redis_client.delete(f"torrent:{torrent_db.id}")
+        await typing.cast(
+            typing.Awaitable[int], redis_client.delete(f"torrent:{torrent_db.id}")
+        )
 
     except Exception as e:
         torrent_db.status = DownloadStatus.FAILED
@@ -130,14 +132,20 @@ async def process_torrent_pipeline(  # noqa: PLR0913
         await db.commit()
 
         # Update Redis so the frontend is notified of the error
-        await redis_client.hset(
-            f"torrent:{torrent_db.id}",
-            mapping={
-                "state": "error",
-                "message": str(e),
-                "progress": str(torrent_db.progress),
-            },
+        await typing.cast(
+            typing.Awaitable[int],
+            redis_client.hset(
+                f"torrent:{torrent_db.id}",
+                mapping={
+                    "state": "error",
+                    "message": str(e),
+                    "progress": str(torrent_db.progress),
+                },
+            ),
         )
         # Set expiry so it doesn't stay forever but long enough for user to see
-        await redis_client.expire(f"torrent:{torrent_db.id}", 3600)
+        await typing.cast(
+            typing.Awaitable[bool],
+            redis_client.expire(f"torrent:{torrent_db.id}", 3600),
+        )
         raise
