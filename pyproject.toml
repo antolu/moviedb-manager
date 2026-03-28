@@ -63,7 +63,7 @@ include = ["moviedb_manager*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-moviedb_manager = ["py.typed", "templates/*.html"]
+moviedb_manager = ["py.typed"]
 
 [project.scripts]
 moviedb-manager = "moviedb_manager.app:main"
@@ -151,3 +151,4 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+markers = ["real_auth: skip default auth override and exercise broker auth code"]
