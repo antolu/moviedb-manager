@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import {
   Download,
@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import {
   addTorrent,
+  exchangeAuthCode,
+  getCurrentUser,
   getHistory,
   getStatus,
   type Torrent,
@@ -30,11 +32,17 @@ function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusResponse | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const buildVersion = import.meta.env.VITE_APP_VERSION;
   const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
+  const authBaseUrl = import.meta.env.VITE_AUTH_BASE_URL ?? "http://localhost";
+  const authClientId = import.meta.env.VITE_AUTH_CLIENT_ID ?? "";
+  const authRedirectUri =
+    import.meta.env.VITE_AUTH_REDIRECT_URI ??
+    `${window.location.origin}/auth/callback`;
 
   const tabs: Array<{ id: Tab; icon: typeof Download; label: string }> = [
     { id: "download", icon: Download, label: "Add Link" },
@@ -42,7 +50,99 @@ function App() {
     { id: "history", icon: History, label: "Reports" },
   ];
 
+  const buildAuthState = useCallback((nextPath: string) => {
+    const payload = JSON.stringify({ next: nextPath });
+    return btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }, []);
+
+  const decodeAuthState = useCallback((value: string | null): string => {
+    if (!value) {
+      return "/";
+    }
+    try {
+      const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
+      const json = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+      const parsed = JSON.parse(json) as { next?: string };
+      return parsed.next || "/";
+    } catch {
+      return "/";
+    }
+  }, []);
+
+  const redirectToLogin = useCallback(
+    (nextPath: string) => {
+      if (!authClientId) {
+        setMessage({ text: "Auth client is not configured", type: "error" });
+        setIsAuthenticating(false);
+        return;
+      }
+      const state = buildAuthState(nextPath);
+      const url = new URL("/login", authBaseUrl);
+      url.searchParams.set("client_id", authClientId);
+      url.searchParams.set("redirect_uri", authRedirectUri);
+      url.searchParams.set("response_type", "code");
+      url.searchParams.set("state", state);
+      window.location.assign(url.toString());
+    },
+    [authClientId, authBaseUrl, authRedirectUri, buildAuthState],
+  );
+
   useEffect(() => {
+    let isMounted = true;
+
+    const bootstrapAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      const state = params.get("state");
+
+      try {
+        if (code) {
+          await exchangeAuthCode(code);
+          const nextPath = decodeAuthState(state);
+          const nextUrl = new URL(nextPath, window.location.origin);
+          window.history.replaceState(
+            null,
+            "",
+            `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`,
+          );
+          setMessage({ text: "Authenticated via portfolio", type: "success" });
+        }
+
+        await getCurrentUser();
+        if (isMounted) {
+          setIsAuthenticating(false);
+        }
+      } catch {
+        if (isMounted) {
+          redirectToLogin(
+            `${window.location.pathname}${window.location.search}${window.location.hash}`,
+          );
+        }
+      }
+    };
+
+    void bootstrapAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, [redirectToLogin, decodeAuthState]);
+
+  useEffect(() => {
+    const onAuthRequired = () => {
+      redirectToLogin(
+        `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      );
+    };
+    window.addEventListener("moviedb-auth-required", onAuthRequired);
+    return () => {
+      window.removeEventListener("moviedb-auth-required", onAuthRequired);
+    };
+  }, [redirectToLogin]);
+
+  useEffect(() => {
+    if (isAuthenticating) {
+      return;
+    }
     const eventSource = new EventSource("/api/torrents/stream");
 
     eventSource.onmessage = (event) => {
@@ -58,17 +158,36 @@ function App() {
     };
 
     return () => eventSource.close();
-  }, []);
+  }, [isAuthenticating]);
 
   useEffect(() => {
+    if (isAuthenticating) {
+      return;
+    }
     void getStatus().then((response) => setStatus(response.data));
-  }, []);
+  }, [isAuthenticating]);
 
   useEffect(() => {
+    if (isAuthenticating) {
+      return;
+    }
     if (activeTab === "history") {
       getHistory().then((res) => setHistory(res.data));
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthenticating]);
+
+  if (isAuthenticating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        <div className="text-center space-y-3">
+          <div className="text-xl font-semibold">Checking session</div>
+          <div className="text-sm text-slate-400">
+            Redirecting to portfolio login if needed.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleAddTorrent = async () => {
     if (!magnet) return;

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
+import typing
 import unittest.mock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from moviedb_manager.api.protocols import MovieSearchResult
+from moviedb_manager.app import app, get_current_user
 from moviedb_manager.config.settings import Settings
 
 
@@ -90,3 +92,17 @@ def mock_db() -> unittest.mock.AsyncMock:
 @pytest.fixture
 def mock_redis() -> unittest.mock.AsyncMock:
     return unittest.mock.AsyncMock()
+
+
+@pytest.fixture(autouse=True)
+def override_auth(request: pytest.FixtureRequest) -> typing.Iterator[None]:
+    if request.node.get_closest_marker("real_auth"):
+        yield
+        return
+
+    def _fake_current_user() -> dict[str, str]:
+        return {"id": "test-user"}
+
+    app.dependency_overrides[get_current_user] = _fake_current_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
