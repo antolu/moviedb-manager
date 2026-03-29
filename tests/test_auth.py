@@ -30,7 +30,9 @@ async def test_auth_exchange_sets_cookie() -> None:
             transport=ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            response = await client.post("/api/auth/exchange", json={"code": "auth-code"})
+            response = await client.post(
+                "/api/auth/exchange", json={"code": "auth-code"}
+            )
 
     assert response.status_code == 200
     assert response.cookies.get("access_token") == "broker-token"
