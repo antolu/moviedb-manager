@@ -9,6 +9,8 @@ import typing
 from typing import Annotated, Any
 
 import fastapi
+import httpx
+import pydantic
 import qbittorrentapi
 import redis.asyncio as redis
 import uvicorn
@@ -105,6 +107,116 @@ async def lifespan(app: fastapi.FastAPI) -> collections.abc.AsyncGenerator[None]
 app = fastapi.FastAPI(lifespan=lifespan)
 
 
+class AuthExchangeRequest(pydantic.BaseModel):
+    code: str
+
+
+def _clear_access_cookie(response: fastapi.Response) -> None:
+    response.delete_cookie(
+        settings.security.cookie_name,
+        path="/",
+        samesite="lax",
+    )
+
+
+async def _fetch_current_user_from_broker(token: str) -> dict[str, Any]:
+    async with httpx.AsyncClient(
+        timeout=settings.security.request_timeout_seconds,
+    ) as client:
+        response = await client.get(
+            f"{settings.security.auth_base_url.rstrip('/')}/api/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    if response.status_code != fastapi.status.HTTP_200_OK:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return typing.cast(dict[str, Any], response.json())
+
+
+async def get_current_user(
+    request: fastapi.Request,
+) -> dict[str, Any]:
+    # Try Authorization header first
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+
+    # Fallback to cookie
+    if not token:
+        token = request.cookies.get("access_token")
+
+    if not token:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return await _fetch_current_user_from_broker(token)
+
+
+@app.post("/api/auth/exchange")
+async def exchange_auth_code(
+    payload: AuthExchangeRequest,
+    response: fastapi.Response,
+) -> dict[str, Any]:
+    async with httpx.AsyncClient(
+        timeout=settings.security.request_timeout_seconds,
+    ) as client:
+        token_response = await client.post(
+            f"{settings.security.auth_base_url.rstrip('/')}/api/auth/oauth/token",
+            json={
+                "grant_type": "authorization_code",
+                "code": payload.code,
+                "client_id": settings.security.client_id,
+                "client_secret": settings.security.client_secret,
+                "redirect_uri": settings.security.redirect_uri,
+            },
+        )
+
+    if token_response.status_code != fastapi.status.HTTP_200_OK:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to exchange auth code",
+        )
+
+    token_payload = typing.cast(dict[str, Any], token_response.json())
+    access_token = typing.cast(str | None, token_payload.get("access_token"))
+    if not access_token:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Broker did not return an access token",
+        )
+
+    response.set_cookie(
+        settings.security.cookie_name,
+        access_token,
+        httponly=True,
+        samesite="lax",
+        path="/",
+        max_age=int(token_payload.get("expires_in", 3600)),
+    )
+    return token_payload
+
+
+@app.post("/api/auth/logout")
+async def logout(response: fastapi.Response) -> dict[str, str]:
+    _clear_access_cookie(response)
+    return {"message": "Logged out"}
+
+
+@app.get("/api/auth/me")
+async def auth_me(
+    current_user: Annotated[dict[str, Any], fastapi.Depends(get_current_user)],
+) -> dict[str, Any]:
+    return current_user
+
+
 # API Endpoints
 
 
@@ -162,6 +274,7 @@ async def run_pipeline_task(magnet_uri: str, media_type: str) -> None:
 async def add_torrent(
     db: Annotated[AsyncSession, fastapi.Depends(get_db)],
     background_tasks: fastapi.BackgroundTasks,
+    current_user: Annotated[str, fastapi.Depends(get_current_user)],
     magnet_uri: str = fastapi.Body(..., embed=True),
     media_type: str = fastapi.Body(..., embed=True),
 ) -> dict[str, str]:
@@ -180,6 +293,7 @@ async def add_torrent(
 @app.get("/api/torrents", response_model=None)
 async def list_torrents(
     db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    current_user: Annotated[str, fastapi.Depends(get_current_user)],
 ) -> list[TorrentDownload]:
     """List active and recently added torrents."""
     query = select(TorrentDownload).order_by(TorrentDownload.added_at.desc()).limit(20)
@@ -220,7 +334,10 @@ async def event_generator(
 
 
 @app.get("/api/torrents/stream")
-async def stream_torrents(request: fastapi.Request) -> EventSourceResponse:
+async def stream_torrents(
+    request: fastapi.Request,
+    current_user: Annotated[str, fastapi.Depends(get_current_user)],
+) -> EventSourceResponse:
     """SSE endpoint for live torrent status updates from Redis."""
     redis_client: redis.Redis = request.app.state.redis
     return EventSourceResponse(event_generator(request, redis_client))
@@ -229,6 +346,7 @@ async def stream_torrents(request: fastapi.Request) -> EventSourceResponse:
 @app.get("/api/history", response_model=None)
 async def get_history(
     db: Annotated[AsyncSession, fastapi.Depends(get_db)],
+    current_user: Annotated[str, fastapi.Depends(get_current_user)],
 ) -> list[dict[str, Any]]:
     """Get history of completed downloads."""
     query = (
