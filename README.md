@@ -43,6 +43,18 @@ Configure the following variables in a `.env` file or directly in your environme
 | `MOVIEDB_QBITTORRENT__PORT`| qBittorrent WebUI port | `8080` |
 | `MOVIEDB_QBITTORRENT__USER`| qBittorrent username | `admin` |
 | `MOVIEDB_QBITTORRENT__PASSWORD`| qBittorrent password | `adminadmin` |
+| `MOVIEDB_SECURITY__AUTH_BASE_URL` | `haochen.lu` base URL | `http://localhost` |
+| `MOVIEDB_SECURITY__CLIENT_ID` | First-party auth client ID | - |
+| `MOVIEDB_SECURITY__CLIENT_SECRET` | First-party auth client secret | - |
+| `MOVIEDB_SECURITY__REDIRECT_URI` | OAuth callback URL for this app | `http://localhost:6001/auth/callback` |
+
+Frontend build variables:
+
+| Variable | Description | Default (Dev) |
+| :--- | :--- | :--- |
+| `VITE_AUTH_BASE_URL` | `haochen.lu` base URL | `http://localhost` |
+| `VITE_AUTH_CLIENT_ID` | First-party auth client ID | - |
+| `VITE_AUTH_REDIRECT_URI` | OAuth callback URL for this app | `http://localhost:6001/auth/callback` |
 
 ### Volume Mappings
 
@@ -56,6 +68,32 @@ Ensure the following volumes are mapped correctly to persist data and media:
 
 #### Connecting to an Existing Database
 If you are using a managed database service (e.g., Supabase, RDS), set `MOVIEDB_DATABASE__HOST` to your platform's host and omit any local database volume mapping (like `./pgdata`) from your compose file.
+
+## Auth
+
+`moviedb-manager` is designed to authenticate through `haochen.lu`.
+
+- The frontend redirects to the portfolio login if there is no valid session.
+- `haochen.lu` returns the browser to `moviedb-manager` with an auth code.
+- The `moviedb-manager` backend exchanges that code using its `client_secret`.
+- The backend stores the returned access token in an HTTP-only cookie.
+- Protected API routes validate that token by calling `haochen.lu /api/auth/me`.
+
+For the sub-app registry in `haochen.lu`, register:
+
+- `url`: the main app URL
+- `admin_url`: optional admin landing URL
+- `redirect_uris`: include `${MOVIEDB_SECURITY__REDIRECT_URI}`
+
+### Local Docker wiring
+
+The local dev compose joins the shared Docker network `first-party-auth-network`.
+
+- The `haochen.lu` backend is reachable from the app container at
+  `http://auth-broker:8000`
+- The browser still uses `http://localhost/login`
+- Set `MOVIEDB_SECURITY__AUTH_BASE_URL=http://auth-broker:8000`
+- Set `VITE_AUTH_BASE_URL=http://localhost`
 
 ## 📜 License
 
