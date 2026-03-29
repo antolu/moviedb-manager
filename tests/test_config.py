@@ -14,8 +14,8 @@ def test_settings_default_values() -> None:
 
 
 def test_settings_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MOVIEDB_APIKEYS__TMDB", "test_tmdb_key")
-    monkeypatch.setenv("MOVIEDB_DIRECTORIES__MOVIE", "custom_movies")
+    monkeypatch.setenv("MOVIEDB_APIKEYS_TMDB", "test_tmdb_key")
+    monkeypatch.setenv("MOVIEDB_DIRECTORIES_MOVIE", "custom_movies")
 
     settings = Settings()
     assert settings.apikeys.tmdb == "test_tmdb_key"
@@ -24,6 +24,6 @@ def test_settings_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_settings_nested_delimiter(monkeypatch: pytest.MonkeyPatch) -> None:
     # Testing Pydantic Settings nested delimiter behavior
-    monkeypatch.setenv("MOVIEDB_REDIS__URL", "redis://test:6379/1")
+    monkeypatch.setenv("MOVIEDB_REDIS_URL", "redis://test:6379/1")
     settings = Settings()
     assert settings.redis.url == "redis://test:6379/1"

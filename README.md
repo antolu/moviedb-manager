@@ -31,22 +31,22 @@ Configure the following variables in a `.env` file or directly in your environme
 
 | Variable | Description | Default (Dev) |
 | :--- | :--- | :--- |
-| `MOVIEDB_APIKEYS__TMDB` | **Required** TMDB API Key | - |
-| `MOVIEDB_APIKEYS__TVDB` | **Required** TVDB v4 API Key | - |
-| `MOVIEDB_DATABASE__HOST` | Database host | `db` |
-| `MOVIEDB_DATABASE__PORT` | Database port | `5432` |
-| `MOVIEDB_DATABASE__USER` | Database user | `moviedb` |
-| `MOVIEDB_DATABASE__PASSWORD` | Database password | `moviedb` |
-| `MOVIEDB_DATABASE__NAME` | Database name | `moviedb` |
-| `MOVIEDB_REDIS__URL` | Redis connection URL | `redis://redis:6379/0` |
-| `MOVIEDB_QBITTORRENT__HOST`| qBittorrent host | `qbittorrent` |
-| `MOVIEDB_QBITTORRENT__PORT`| qBittorrent WebUI port | `8080` |
-| `MOVIEDB_QBITTORRENT__USER`| qBittorrent username | `admin` |
-| `MOVIEDB_QBITTORRENT__PASSWORD`| qBittorrent password | `adminadmin` |
-| `MOVIEDB_SECURITY__AUTH_BASE_URL` | `haochen.lu` base URL | `http://localhost` |
-| `MOVIEDB_SECURITY__CLIENT_ID` | First-party auth client ID | - |
-| `MOVIEDB_SECURITY__CLIENT_SECRET` | First-party auth client secret | - |
-| `MOVIEDB_SECURITY__REDIRECT_URI` | OAuth callback URL for this app | `http://localhost:6001/auth/callback` |
+| `MOVIEDB_APIKEYS_TMDB` | **Required** TMDB API Key | - |
+| `MOVIEDB_APIKEYS_TVDB` | **Required** TVDB v4 API Key | - |
+| `MOVIEDB_DATABASE_HOST` | Database host | `db` |
+| `MOVIEDB_DATABASE_PORT` | Database port | `5432` |
+| `MOVIEDB_DATABASE_USER` | Database user | `moviedb` |
+| `MOVIEDB_DATABASE_PASSWORD` | Database password | `moviedb` |
+| `MOVIEDB_DATABASE_NAME` | Database name | `moviedb` |
+| `MOVIEDB_REDIS_URL` | Redis connection URL | `redis://redis:6379/0` |
+| `MOVIEDB_QBITTORRENT_HOST`| qBittorrent host | `qbittorrent` |
+| `MOVIEDB_QBITTORRENT_PORT`| qBittorrent WebUI port | `8080` |
+| `MOVIEDB_QBITTORRENT_USER`| qBittorrent username | `admin` |
+| `MOVIEDB_QBITTORRENT_PASSWORD`| qBittorrent password | `adminadmin` |
+| `MOVIEDB_SECURITY_AUTH_BASE_URL` | `haochen.lu` base URL | `http://localhost` |
+| `MOVIEDB_SECURITY_CLIENT_ID` | First-party auth client ID | - |
+| `MOVIEDB_SECURITY_CLIENT_SECRET` | First-party auth client secret | - |
+| `MOVIEDB_SECURITY_REDIRECT_URI` | OAuth callback URL for this app | `http://localhost:6001/auth/callback` |
 
 Frontend build variables:
 

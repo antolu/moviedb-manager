@@ -52,7 +52,10 @@ function App() {
 
   const buildAuthState = useCallback((nextPath: string) => {
     const payload = JSON.stringify({ next: nextPath });
-    return btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    return btoa(payload)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
   }, []);
 
   const decodeAuthState = useCallback((value: string | null): string => {

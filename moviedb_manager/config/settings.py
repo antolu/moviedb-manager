@@ -68,7 +68,7 @@ class Settings(pydantic_settings.BaseSettings):
 
     model_config = pydantic_settings.SettingsConfigDict(
         env_prefix="MOVIEDB_",
-        env_nested_delimiter="__",
+        env_nested_delimiter="_",
         env_file=".env",
         extra="ignore",
     )

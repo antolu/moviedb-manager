@@ -15,11 +15,11 @@ import time
 import sys
 
 async def check_db():
-    host = os.getenv('MOVIEDB_DATABASE__HOST', 'db')
-    port = int(os.getenv('MOVIEDB_DATABASE__PORT', 5432))
-    user = os.getenv('MOVIEDB_DATABASE__USER', 'moviedb')
-    password = os.getenv('MOVIEDB_DATABASE__PASSWORD', 'moviedb')
-    database = os.getenv('MOVIEDB_DATABASE__NAME', 'moviedb')
+    host = os.getenv('MOVIEDB_DATABASE_HOST', 'db')
+    port = int(os.getenv('MOVIEDB_DATABASE_PORT', 5432))
+    user = os.getenv('MOVIEDB_DATABASE_USER', 'moviedb')
+    password = os.getenv('MOVIEDB_DATABASE_PASSWORD', 'moviedb')
+    database = os.getenv('MOVIEDB_DATABASE_NAME', 'moviedb')
 
     max_attempts = 30
     attempt = 0

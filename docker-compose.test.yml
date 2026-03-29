@@ -27,16 +27,16 @@ services:
         BUILD_TYPE: development
     container_name: moviedb-app-test
     environment:
-      - MOVIEDB_DATABASE__HOST=db
-      - MOVIEDB_DATABASE__PORT=5432
-      - MOVIEDB_DATABASE__USER=testuser
-      - MOVIEDB_DATABASE__PASSWORD=testpassword
-      - MOVIEDB_DATABASE__NAME=testdb
-      - MOVIEDB_REDIS__URL=redis://redis:6379/0
-      - MOVIEDB_QBITTORRENT__HOST=qbittorrent
-      - MOVIEDB_QBITTORRENT__PORT=8080
-      - MOVIEDB_QBITTORRENT__USER=admin
-      - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
+      - MOVIEDB_DATABASE_HOST=db
+      - MOVIEDB_DATABASE_PORT=5432
+      - MOVIEDB_DATABASE_USER=testuser
+      - MOVIEDB_DATABASE_PASSWORD=testpassword
+      - MOVIEDB_DATABASE_NAME=testdb
+      - MOVIEDB_REDIS_URL=redis://redis:6379/0
+      - MOVIEDB_QBITTORRENT_HOST=qbittorrent
+      - MOVIEDB_QBITTORRENT_PORT=8080
+      - MOVIEDB_QBITTORRENT_USER=admin
+      - MOVIEDB_QBITTORRENT_PASSWORD=adminadmin
       - ENVIRONMENT=test
     volumes:
       - ./moviedb_manager:/app/moviedb_manager
@@ -56,12 +56,12 @@ services:
         BUILD_TYPE: development
     container_name: moviedb-test-runner
     environment:
-      - MOVIEDB_DATABASE__HOST=db
-      - MOVIEDB_DATABASE__PORT=5432
-      - MOVIEDB_DATABASE__USER=testuser
-      - MOVIEDB_DATABASE__PASSWORD=testpassword
-      - MOVIEDB_DATABASE__NAME=testdb
-      - MOVIEDB_REDIS__URL=redis://redis:6379/0
+      - MOVIEDB_DATABASE_HOST=db
+      - MOVIEDB_DATABASE_PORT=5432
+      - MOVIEDB_DATABASE_USER=testuser
+      - MOVIEDB_DATABASE_PASSWORD=testpassword
+      - MOVIEDB_DATABASE_NAME=testdb
+      - MOVIEDB_REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=test
       - PYTHONUNBUFFERED=1
     volumes:
