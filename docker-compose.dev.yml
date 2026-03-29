@@ -153,5 +153,4 @@ networks:
   moviedb-network:
     driver: bridge
   first-party-auth-network:
-    driver: bridge
-    name: first-party-auth-network
+    external: true
