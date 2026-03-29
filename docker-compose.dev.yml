@@ -49,6 +49,10 @@ services:
       - MOVIEDB_QBITTORRENT__PORT=8080
       - MOVIEDB_QBITTORRENT__USER=admin
       - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
+      - MOVIEDB_SECURITY__AUTH_BASE_URL=${MOVIEDB_SECURITY__AUTH_BASE_URL:-http://auth-broker:8000}
+      - MOVIEDB_SECURITY__CLIENT_ID=${MOVIEDB_SECURITY__CLIENT_ID:-}
+      - MOVIEDB_SECURITY__CLIENT_SECRET=${MOVIEDB_SECURITY__CLIENT_SECRET:-}
+      - MOVIEDB_SECURITY__REDIRECT_URI=${MOVIEDB_SECURITY__REDIRECT_URI:-http://localhost:6001/auth/callback}
     command: ["uvicorn", "moviedb_manager.app:app", "--host", "0.0.0.0", "--port", "5000", "--reload", "--reload-dir", "/app/moviedb_manager"]
     ports:
       - "6003:5000" # Direct access for debugging
@@ -61,6 +65,7 @@ services:
         condition: service_started
     networks:
       - moviedb-network
+      - first-party-auth-network
 
   frontend:
     build:
@@ -74,6 +79,9 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_URL=/api
+      - VITE_AUTH_BASE_URL=${VITE_AUTH_BASE_URL:-http://localhost}
+      - VITE_AUTH_CLIENT_ID=${VITE_AUTH_CLIENT_ID:-}
+      - VITE_AUTH_REDIRECT_URI=${VITE_AUTH_REDIRECT_URI:-http://localhost:6001/auth/callback}
     networks:
       - moviedb-network
 
@@ -139,3 +147,6 @@ services:
 networks:
   moviedb-network:
     driver: bridge
+  first-party-auth-network:
+    driver: bridge
+    name: first-party-auth-network

@@ -93,6 +93,10 @@ services:
       - MOVIEDB_QBITTORRENT__PORT=8080
       - MOVIEDB_QBITTORRENT__USER=admin
       - MOVIEDB_QBITTORRENT__PASSWORD=adminadmin
+      - MOVIEDB_SECURITY__AUTH_BASE_URL=${MOVIEDB_SECURITY__AUTH_BASE_URL:-http://auth-broker:8000}
+      - MOVIEDB_SECURITY__CLIENT_ID=${MOVIEDB_SECURITY__CLIENT_ID:-}
+      - MOVIEDB_SECURITY__CLIENT_SECRET=${MOVIEDB_SECURITY__CLIENT_SECRET:-}
+      - MOVIEDB_SECURITY__REDIRECT_URI=${MOVIEDB_SECURITY__REDIRECT_URI:-http://localhost:6001/auth/callback}
       - PYTHONUNBUFFERED=1
     volumes:
       - ./downloads:/data/downloads
@@ -107,8 +111,12 @@ services:
       start_period: 20s
     networks:
       - moviedb-network
+      - first-party-auth-network
 
 
 networks:
   moviedb-network:
     driver: bridge
+  first-party-auth-network:
+    driver: bridge
+    name: first-party-auth-network
