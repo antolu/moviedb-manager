@@ -64,8 +64,10 @@ services:
       qbittorrent:
         condition: service_started
     networks:
-      - moviedb-network
-      - first-party-auth-network
+      moviedb-network: {}
+      first-party-auth-network:
+        aliases:
+          - moviedb-app
 
   frontend:
     build:
@@ -83,7 +85,10 @@ services:
       - VITE_AUTH_CLIENT_ID=${VITE_AUTH_CLIENT_ID:-}
       - VITE_AUTH_REDIRECT_URI=${VITE_AUTH_REDIRECT_URI:-http://localhost:6001/auth/callback}
     networks:
-      - moviedb-network
+      moviedb-network: {}
+      first-party-auth-network:
+        aliases:
+          - moviedb-frontend
 
   db:
     image: postgres:17-alpine
