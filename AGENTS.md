@@ -17,18 +17,18 @@ Core features include magnet link submission, automatic processing pipeline for 
 
 ### Environment Setup
 Required environment variables (create `.env` file):
-- `MOVIEDB_DATABASE__NAME`: Database name (default: `moviedb`)
-- `MOVIEDB_DATABASE__USER`: Database user (default: `moviedb`)
-- `MOVIEDB_DATABASE__PASSWORD`: Database password (default: `moviedb`)
-- `MOVIEDB_DATABASE__HOST`: Database host (default: `db` in Docker, `localhost` locally)
-- `MOVIEDB_DATABASE__PORT`: Database port (default: `5432`)
-- `MOVIEDB_APIKEYS__TMDB`: API key for TMDB
-- `MOVIEDB_APIKEYS__TVDB`: API key for TVDB v4
-- `MOVIEDB_QBITTORRENT__HOST`: qBittorrent host (default: `qbittorrent` in Docker)
-- `MOVIEDB_QBITTORRENT__PORT`: qBittorrent port (default: `8080`)
-- `MOVIEDB_QBITTORRENT__USER`: qBittorrent username (default: `admin`)
-- `MOVIEDB_QBITTORRENT__PASSWORD`: qBittorrent password (default: `adminadmin`)
-- `MOVIEDB_REDIS__URL`: Redis connection URL (default: `redis://redis:6379/0` in Docker)
+- `MOVIEDB_DATABASE_NAME`: Database name (default: `moviedb`)
+- `MOVIEDB_DATABASE_USER`: Database user (default: `moviedb`)
+- `MOVIEDB_DATABASE_PASSWORD`: Database password (default: `moviedb`)
+- `MOVIEDB_DATABASE_HOST`: Database host (default: `db` in Docker, `localhost` locally)
+- `MOVIEDB_DATABASE_PORT`: Database port (default: `5432`)
+- `MOVIEDB_APIKEYS_TMDB`: API key for TMDB
+- `MOVIEDB_APIKEYS_TVDB`: API key for TVDB v4
+- `MOVIEDB_QBITTORRENT_HOST`: qBittorrent host (default: `qbittorrent` in Docker)
+- `MOVIEDB_QBITTORRENT_PORT`: qBittorrent port (default: `8080`)
+- `MOVIEDB_QBITTORRENT_USER`: qBittorrent username (default: `admin`)
+- `MOVIEDB_QBITTORRENT_PASSWORD`: qBittorrent password (default: `adminadmin`)
+- `MOVIEDB_REDIS_URL`: Redis connection URL (default: `redis://redis:6379/0` in Docker)
 
 ### Development Commands
 
