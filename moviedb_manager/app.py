@@ -5,11 +5,14 @@ import collections.abc
 import contextlib
 import json
 import os
+import time
 import typing
 from typing import Annotated, Any
 
 import fastapi
 import httpx
+import jwt
+import jwt.algorithms
 import pydantic
 import qbittorrentapi
 import redis.asyncio as redis
@@ -111,6 +114,79 @@ class AuthExchangeRequest(pydantic.BaseModel):
     code: str
 
 
+class _JwksCache(typing.TypedDict):
+    keys: list[dict[str, Any]]
+    fetched_at: float
+
+
+_jwks_cache: dict[str, _JwksCache] = {}
+_JWKS_TTL = 3600
+
+
+async def _get_jwks() -> list[dict[str, Any]]:
+    now = time.monotonic()
+    cached = _jwks_cache.get("cache")
+    if cached is not None and now - cached["fetched_at"] < _JWKS_TTL:
+        return cached["keys"]
+
+    base = settings.security.auth_base_url.rstrip("/")
+    async with httpx.AsyncClient(
+        timeout=settings.security.request_timeout_seconds,
+    ) as client:
+        discovery = await client.get(
+            f"{base}/api/oidc/.well-known/openid-configuration"
+        )
+        discovery.raise_for_status()
+        jwks_uri = typing.cast(str, discovery.json()["jwks_uri"])
+        jwks = await client.get(jwks_uri)
+        jwks.raise_for_status()
+
+    keys = typing.cast(list[dict[str, Any]], jwks.json()["keys"])
+    _jwks_cache["cache"] = {"keys": keys, "fetched_at": now}
+    return keys
+
+
+async def _validate_token(token: str) -> dict[str, Any]:
+    try:
+        keys = await _get_jwks()
+    except Exception as exc:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to fetch JWKS",
+        ) from exc
+
+    unverified_header = jwt.get_unverified_header(token)
+    kid = unverified_header.get("kid")
+
+    matching = [k for k in keys if k.get("kid") == kid] if kid else keys
+    if not matching:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="No matching JWKS key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    last_exc: Exception | None = None
+    for jwk in matching:
+        try:
+            public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+            claims = jwt.decode(
+                token,
+                public_key,  # type: ignore[arg-type]
+                algorithms=["RS256"],
+                options={"require": ["sub", "exp", "iss"]},
+            )
+            return typing.cast(dict[str, Any], claims)
+        except jwt.PyJWTError as exc:
+            last_exc = exc
+
+    raise fastapi.HTTPException(
+        status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    ) from last_exc
+
+
 def _clear_access_cookie(response: fastapi.Response) -> None:
     response.delete_cookie(
         settings.security.cookie_name,
@@ -119,34 +195,14 @@ def _clear_access_cookie(response: fastapi.Response) -> None:
     )
 
 
-async def _fetch_current_user_from_broker(token: str) -> dict[str, Any]:
-    async with httpx.AsyncClient(
-        timeout=settings.security.request_timeout_seconds,
-    ) as client:
-        response = await client.get(
-            f"{settings.security.auth_base_url.rstrip('/')}/api/auth/me",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-
-    if response.status_code != fastapi.status.HTTP_200_OK:
-        raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return typing.cast(dict[str, Any], response.json())
-
-
 async def get_current_user(
     request: fastapi.Request,
 ) -> dict[str, Any]:
-    # Try Authorization header first
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
 
-    # Fallback to cookie
     if not token:
         token = request.cookies.get("access_token")
 
@@ -157,7 +213,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return await _fetch_current_user_from_broker(token)
+    return await _validate_token(token)
 
 
 @app.post("/api/auth/exchange")
@@ -208,6 +264,63 @@ async def exchange_auth_code(
 async def logout(response: fastapi.Response) -> dict[str, str]:
     _clear_access_cookie(response)
     return {"message": "Logged out"}
+
+
+@app.post("/api/auth/refresh")
+async def refresh_token(
+    request: fastapi.Request,
+    response: fastapi.Response,
+) -> dict[str, Any]:
+    refresh_cookie = request.cookies.get("refresh_token")
+    if not refresh_cookie:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token",
+        )
+
+    async with httpx.AsyncClient(
+        timeout=settings.security.request_timeout_seconds,
+    ) as client:
+        token_response = await client.post(
+            f"{settings.security.auth_base_url.rstrip('/')}/api/auth/refresh",
+            cookies={"refresh_token": refresh_cookie},
+        )
+
+    if token_response.status_code != fastapi.status.HTTP_200_OK:
+        _clear_access_cookie(response)
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh failed",
+        )
+
+    token_payload = typing.cast(dict[str, Any], token_response.json())
+    access_token = typing.cast(str | None, token_payload.get("access_token"))
+    if not access_token:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
+            detail="Broker did not return an access token",
+        )
+
+    response.set_cookie(
+        settings.security.cookie_name,
+        access_token,
+        httponly=True,
+        samesite="lax",
+        path="/",
+        max_age=int(token_payload.get("expires_in", 3600)),
+    )
+
+    new_refresh = token_response.cookies.get("refresh_token")
+    if new_refresh:
+        response.set_cookie(
+            "refresh_token",
+            new_refresh,
+            httponly=True,
+            samesite="lax",
+            path="/",
+        )
+
+    return token_payload
 
 
 @app.get("/api/auth/me")
