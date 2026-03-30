@@ -46,6 +46,7 @@ class MiscSettings(pydantic.BaseModel):
 
 
 class SecuritySettings(pydantic.BaseModel):
+    enabled: bool = False
     auth_base_url: str = "http://localhost"
     client_id: str = ""
     client_secret: str = ""
@@ -53,6 +54,23 @@ class SecuritySettings(pydantic.BaseModel):
     login_url: str = "http://localhost/login"
     cookie_name: str = "access_token"
     request_timeout_seconds: int = 10
+
+    @pydantic.model_validator(mode="after")
+    def check_auth_config(self) -> SecuritySettings:
+        if self.enabled:
+            missing = [
+                name
+                for name, val in [
+                    ("client_id", self.client_id),
+                    ("client_secret", self.client_secret),
+                ]
+                if not val
+            ]
+            if missing:
+                fields = ", ".join(f"MOVIEDB_SECURITY_{f.upper()}" for f in missing)
+                msg = f"Auth is enabled but required env vars are not set: {fields}"
+                raise ValueError(msg)
+        return self
 
 
 class Settings(pydantic_settings.BaseSettings):
