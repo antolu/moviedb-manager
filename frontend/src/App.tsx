@@ -32,7 +32,8 @@ function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<StatusResponse | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const authEnabled = import.meta.env.VITE_AUTH_ENABLED === "true";
+  const [isAuthenticating, setIsAuthenticating] = useState(authEnabled);
   const buildVersion = import.meta.env.VITE_APP_VERSION;
   const [message, setMessage] = useState<{
     text: string;
@@ -91,6 +92,10 @@ function App() {
   );
 
   useEffect(() => {
+    if (!authEnabled) {
+      return;
+    }
+
     let isMounted = true;
 
     const bootstrapAuth = async () => {
@@ -128,9 +133,13 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [redirectToLogin, decodeAuthState]);
+  }, [authEnabled, redirectToLogin, decodeAuthState]);
 
   useEffect(() => {
+    if (!authEnabled) {
+      return;
+    }
+
     const onAuthRequired = () => {
       redirectToLogin(
         `${window.location.pathname}${window.location.search}${window.location.hash}`,
@@ -140,7 +149,7 @@ function App() {
     return () => {
       window.removeEventListener("moviedb-auth-required", onAuthRequired);
     };
-  }, [redirectToLogin]);
+  }, [authEnabled, redirectToLogin]);
 
   useEffect(() => {
     if (isAuthenticating) {
