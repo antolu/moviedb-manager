@@ -41,10 +41,16 @@ async def test_auth_exchange_sets_cookie() -> None:
 @pytest.mark.no_auth_override
 @pytest.mark.asyncio
 async def test_auth_me_validates_token_locally() -> None:
-    with unittest.mock.patch(
-        "moviedb_manager.app._validate_token",
-        new=unittest.mock.AsyncMock(
-            return_value={"sub": "user-1", "email": "user@example.com"}
+    with (
+        unittest.mock.patch(
+            "moviedb_manager.app.settings.security.enabled",
+            new=True,
+        ),
+        unittest.mock.patch(
+            "moviedb_manager.app._validate_token",
+            new=unittest.mock.AsyncMock(
+                return_value={"sub": "user-1", "email": "user@example.com"}
+            ),
         ),
     ):
         async with AsyncClient(
@@ -61,11 +67,15 @@ async def test_auth_me_validates_token_locally() -> None:
 @pytest.mark.no_auth_override
 @pytest.mark.asyncio
 async def test_auth_me_returns_401_without_token() -> None:
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as client:
-        response = await client.get("/api/auth/me")
+    with unittest.mock.patch(
+        "moviedb_manager.app.settings.security.enabled",
+        new=True,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            response = await client.get("/api/auth/me")
 
     assert response.status_code == 401
 
