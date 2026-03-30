@@ -97,6 +97,9 @@ def mock_redis() -> unittest.mock.AsyncMock:
 @pytest.fixture(autouse=True)
 def override_auth(request: pytest.FixtureRequest) -> typing.Iterator[None]:
     if request.node.get_closest_marker("real_auth"):
+        pytest.skip("requires live auth broker")
+
+    if request.node.get_closest_marker("no_auth_override"):
         yield
         return
 
