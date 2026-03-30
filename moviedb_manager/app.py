@@ -198,6 +198,9 @@ def _clear_access_cookie(response: fastapi.Response) -> None:
 async def get_current_user(
     request: fastapi.Request,
 ) -> dict[str, Any]:
+    if not settings.security.enabled:
+        return {}
+
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
