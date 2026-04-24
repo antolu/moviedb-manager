@@ -1,7 +1,7 @@
 [project]
 dependencies = [
     "fastapi~=0.135.1",
-    "uvicorn~=0.44.0",
+    "uvicorn>=0.44,<0.47",
     "qbittorrent-api~=2025.11.1",
     "pyyaml~=6.0.3",
     "tmdbv3api~=1.9.0",
